@@ -31,6 +31,10 @@ Deno.test("作成、予約、管理、および二重予約の拒否", async () 
   });
   assertEquals(createdResponse.status, 201);
   const created = await createdResponse.json();
+  assertEquals(created.bookingUrl, `/book/${created.id}`);
+  if (!created.adminUrl.startsWith(`/admin/${created.id}?token=`)) {
+    throw new Error("トークン付き管理URLが発行されていません");
+  }
   const schedule = await (await call(`/api/schedules/${created.id}`)).json();
   assertEquals(schedule.slots.length, 2);
   const booking = {

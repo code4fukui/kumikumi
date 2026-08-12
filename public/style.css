@@ -193,6 +193,30 @@ a:focus-visible {
 .urls a {
   overflow-wrap: anywhere;
 }
+.admin-bookmark p {
+  margin-bottom: 0;
+}
+.share-url {
+  margin: 18px 0;
+}
+.share-url > label {
+  margin-bottom: 6px;
+}
+.share-url > div {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto auto;
+  gap: 8px;
+}
+.share-url .button,
+.share-url button {
+  white-space: nowrap;
+}
+.copy-status {
+  min-height: 1.5em;
+  margin: 5px 0 0;
+  color: var(--key-dark);
+  font-size: .9rem;
+}
 table {
   width: 100%;
   border-collapse: collapse;
@@ -250,6 +274,12 @@ td {
   .date-heading {
     align-items: stretch;
     flex-direction: column;
+  }
+  .share-url > div {
+    grid-template-columns: 1fr 1fr;
+  }
+  .share-url input {
+    grid-column: 1 / -1;
   }
   .date-heading button {
     align-self: start;

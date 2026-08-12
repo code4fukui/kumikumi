@@ -75,8 +75,7 @@ function createPage() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
       });
-      app.innerHTML =
-        `<h1>作成しました</h1><div class="message urls"><p>予約者用URL<br><a href="${result.bookingUrl}">${location.origin}${result.bookingUrl}</a></p><p>管理用URL（大切に保管してください）<br><a href="${result.adminUrl}">${location.origin}${result.adminUrl}</a></p></div>`;
+      location.assign(result.adminUrl);
     } catch (err) {
       msg.className = "message error";
       msg.textContent = err.message;
@@ -151,6 +150,8 @@ async function adminPage(id) {
   try {
     const token = new URLSearchParams(location.search).get("token") ?? "";
     const s = await request(`/api/admin/${id}?token=${encodeURIComponent(token)}`);
+    const adminTitle = `${s.title} - くみくみ管理画面`;
+    document.title = adminTitle;
     const bySlot = new Map(s.bookings.map((b) => [b.slot, b]));
     const slotsByDay = new Map();
     for (const slot of s.slots) {
@@ -158,9 +159,10 @@ async function adminPage(id) {
       if (!slotsByDay.has(key)) slotsByDay.set(key, []);
       slotsByDay.get(key).push(slot);
     }
+    const bookingUrl = `${location.origin}/book/${id}`;
     app.innerHTML = `<h1>${
-      esc(s.title)
-    } — 管理</h1><p>予約 ${s.bookings.length} / ${s.slots.length}件</p><div class="urls"><p>予約者用URL: <a href="/book/${id}">${location.origin}/book/${id}</a></p></div><div>${
+      esc(adminTitle)
+    }</h1><div class="message admin-bookmark"><strong>このページをブックマークしてください</strong><p>この管理画面はトークン付きの固有URLです。</p></div><p>予約 ${s.bookings.length} / ${s.slots.length}件</p><div class="urls share-url"><label for="booking-url">ユーザー向けURL</label><div><input id="booking-url" value="${bookingUrl}" readonly><a class="button" href="/book/${id}" target="_blank" rel="noopener noreferrer">新規ウィンドウで開く</a><button id="copy-booking-url" type="button">URLをコピー</button></div><p id="copy-status" class="copy-status" role="status"></p></div><div>${
       [...slotsByDay].map(([dateLabel, slots]) =>
         `<section class="admin-day"><h2>${
           esc(dateLabel)
@@ -186,6 +188,17 @@ async function adminPage(id) {
         }</ul>`
         : "<p>履歴はありません。</p>"
     }</section>`;
+    document.querySelector("#copy-booking-url").onclick = async () => {
+      const status = document.querySelector("#copy-status");
+      try {
+        await navigator.clipboard.writeText(bookingUrl);
+        status.textContent = "コピーしました";
+      } catch {
+        const input = document.querySelector("#booking-url");
+        input.select();
+        status.textContent = "URLを選択しました。コピー操作を行ってください";
+      }
+    };
   } catch (err) {
     app.innerHTML = `<div class="message error">${esc(err.message)}</div>`;
   }
