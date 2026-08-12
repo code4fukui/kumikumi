@@ -169,13 +169,18 @@ Deno.test("config.jsonの表示設定だけを公開する", async () => {
     JSON.stringify({
       titleLogo: "https://example.com/logo.png",
       keyColor: "#123456",
+      slotTime: 45,
       gmailAddress: "secret@example.com",
       appPassword: "secret",
     }),
   );
   const handler = createApp({ dataDir: dir, publicDir: "public", configPath });
   const config = await (await handler(new Request("http://test/api/config"))).json();
-  assertEquals(config, { titleLogo: "https://example.com/logo.png", keyColor: "#123456" });
+  assertEquals(config, {
+    titleLogo: "https://example.com/logo.png",
+    keyColor: "#123456",
+    slotTime: 45,
+  });
 });
 
 Deno.test("表示設定がない場合は既定のロゴと緑を返す", async () => {
@@ -186,5 +191,14 @@ Deno.test("表示設定がない場合は既定のロゴと緑を返す", async 
     configPath: `${dir}/missing.json`,
   });
   const config = await (await handler(new Request("http://test/api/config"))).json();
-  assertEquals(config, { titleLogo: "/logo.png", keyColor: "#168458" });
+  assertEquals(config, { titleLogo: "/logo.png", keyColor: "#168458", slotTime: 30 });
+});
+
+Deno.test("不正なslotTimeは30分にフォールバックする", async () => {
+  const dir = await Deno.makeTempDir();
+  const configPath = `${dir}/config.json`;
+  await Deno.writeTextFile(configPath, JSON.stringify({ slotTime: 0 }));
+  const handler = createApp({ dataDir: dir, publicDir: "public", configPath });
+  const config = await (await handler(new Request("http://test/api/config"))).json();
+  assertEquals(config.slotTime, 30);
 });

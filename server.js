@@ -71,6 +71,7 @@ export function createApp(options = {}) {
     if (req.method === "GET" && url.pathname === "/api/config") {
       let titleLogo = "/logo.png";
       let keyColor = "#168458";
+      let slotTime = 30;
       try {
         const config = JSON.parse(await Deno.readTextFile(configPath));
         if (typeof config.titleLogo === "string" && config.titleLogo.trim()) {
@@ -79,12 +80,15 @@ export function createApp(options = {}) {
         if (typeof config.keyColor === "string" && config.keyColor.trim()) {
           keyColor = config.keyColor.trim();
         }
+        if (Number.isInteger(config.slotTime) && config.slotTime >= 5 && config.slotTime <= 480) {
+          slotTime = config.slotTime;
+        }
       } catch (e) {
         if (!(e instanceof Deno.errors.NotFound)) {
           console.error("config.jsonを読み込めませんでした", e);
         }
       }
-      return json({ titleLogo, keyColor });
+      return json({ titleLogo, keyColor, slotTime });
     }
 
     if (req.method === "POST" && url.pathname === "/api/schedules") {

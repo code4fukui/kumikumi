@@ -24,10 +24,10 @@ const field = (label, name, type = "text", required = true) =>
     required ? "required" : ""
   }>`;
 
-function createPage() {
+function createPage(config) {
   app.innerHTML = `<h1>予約スケジュールを作る</h1><form id="create">${
     field("タイトル", "title")
-  }<label for="minutes">1スロットの時間（分）</label><input id="minutes" name="slotMinutes" type="number" min="5" max="480" value="30" required><label>予約可能日時</label><div id="dates"></div><button type="button" class="secondary" id="add-date">＋ 日付を追加</button><p><button>スケジュールを作成</button></p><div id="message"></div></form>`;
+  }<label for="minutes">1スロットの時間（分）</label><input id="minutes" name="slotMinutes" type="number" min="5" max="480" value="${config.slotTime}" required><label>予約可能日時</label><div id="dates"></div><button type="button" class="secondary" id="add-date">＋ 日付を追加</button><p><button>スケジュールを作成</button></p><div id="message"></div></form>`;
 
   const addTime = (dateGroup) => {
     const row = document.createElement("div");
@@ -225,7 +225,7 @@ async function cancelPage(scheduleId, bookingId) {
       try {
         await request(endpoint, { method: "POST" });
         app.innerHTML =
-          `<h1>キャンセルしました</h1><div class="message">予約のキャンセルを受け付けました。</div>`;
+          `<h1>キャンセルしました</h1><div class="message"><p>予約のキャンセルを受け付けました。</p><p><a class="button" href="/book/${scheduleId}">別日程で予約を取る</a></p></div>`;
       } catch (err) {
         button.disabled = false;
         const msg = document.querySelector("#message");
@@ -239,8 +239,9 @@ async function cancelPage(scheduleId, bookingId) {
 }
 
 async function start() {
+  let config = { titleLogo: "/logo.png", keyColor: "#168458", slotTime: 30 };
   try {
-    const config = await request("/api/config");
+    config = await request("/api/config");
     document.querySelector("#title-logo").src = new URL(config.titleLogo, `${location.origin}/`);
     if (CSS.supports("color", config.keyColor)) {
       document.documentElement.style.setProperty("--key-color", config.keyColor);
@@ -251,7 +252,7 @@ async function start() {
   const match = location.pathname.match(/^\/(book|admin)\/([^/]+)$/);
   const cancelMatch = location.pathname.match(/^\/cancel\/([^/]+)\/([^/]+)$/);
   if (cancelMatch) cancelPage(cancelMatch[1], cancelMatch[2]);
-  else if (!match) createPage();
+  else if (!match) createPage(config);
   else if (match[1] === "book") bookPage(match[2]);
   else adminPage(match[2]);
 }
