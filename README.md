@@ -22,6 +22,7 @@
   - 案内文は「希望時間帯を選んでください」
   - 登録後、キャンセル用のURLが発行され、ユーザー意思でキャンセルができる
     - キャンセル済み画面に「別日程で予約を取る」ボタンを追加
+    - メール送信用のURLのベースは、config.json の baseURL で指定されたものを使用する
   - 登録後 https://github.com/code4fukui/Gmailer を使って、キャンセルURL付きで確認メールをおくる
     - Gmailerのメールアドレス、App password を config.json から読み込んで使用する
     - 確認メールのテンプレートは mail-template.txt を使用する
@@ -61,3 +62,4 @@ deno task start
 です。認証情報を含む `config.json` はGit管理対象外です。 `titleLogo`
 にはロゴ画像のパスまたはURLを指定できます。未指定時は `/logo.png` を使用します。 `keyColor`
 にはCSSで利用可能な色を指定できます。未指定時は緑（`#168458`）を使用します。
+確認メール内のキャンセルURLには、`baseURL` に指定した公開URLを使用します。

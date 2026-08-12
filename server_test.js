@@ -121,6 +121,48 @@ Deno.test("メールテンプレートの差し込み", () => {
   );
 });
 
+Deno.test("メールのキャンセルURLにconfig.jsonのbaseURLを使用する", async () => {
+  const dir = await Deno.makeTempDir();
+  const configPath = `${dir}/config.json`;
+  await Deno.writeTextFile(
+    configPath,
+    JSON.stringify({ baseURL: "https://reserve.example/base/" }),
+  );
+  const sentMails = [];
+  const handler = createApp({
+    dataDir: dir,
+    publicDir: "public",
+    configPath,
+    sendMail: (mail) => sentMails.push(mail),
+  });
+  const post = (path, body) =>
+    handler(
+      new Request(`http://internal${path}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    );
+  const created = await (await post("/api/schedules", {
+    title: "面談",
+    slotMinutes: 30,
+    ranges: [{ start: "2030-01-01T00:00:00.000Z", end: "2030-01-01T00:30:00.000Z" }],
+  })).json();
+  const schedule = await (await handler(new Request(`http://internal/api/schedules/${created.id}`)))
+    .json();
+  const response = await post(`/api/schedules/${created.id}/bookings`, {
+    slot: schedule.slots[0],
+    company: "テスト社",
+    familyName: "山田",
+    givenName: "太郎",
+    email: "taro@example.jp",
+  });
+  assertEquals(response.status, 201);
+  if (!sentMails[0].cancelUrl.startsWith("https://reserve.example/cancel/")) {
+    throw new Error(`baseURLが使われていません: ${sentMails[0].cancelUrl}`);
+  }
+});
+
 Deno.test("メール送信に失敗した場合は予約を登録しない", async () => {
   const dir = await Deno.makeTempDir();
   const handler = createApp({

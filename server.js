@@ -36,6 +36,21 @@ export function createApp(options = {}) {
     await Deno.rename(temp, path);
   }
 
+  async function getBaseUrl(requestUrl) {
+    if (baseUrl) return baseUrl;
+    try {
+      const config = JSON.parse(await Deno.readTextFile(configPath));
+      if (typeof config.baseURL === "string" && config.baseURL.trim()) {
+        return new URL(config.baseURL.trim()).href;
+      }
+    } catch (e) {
+      if (!(e instanceof Deno.errors.NotFound)) {
+        console.error("config.jsonのbaseURLを読み込めませんでした", e);
+      }
+    }
+    return requestUrl;
+  }
+
   async function locked(key, fn) {
     const previous = locks.get(key) ?? Promise.resolve();
     let release;
@@ -182,7 +197,7 @@ export function createApp(options = {}) {
         const cancelPath = `/cancel/${schedule.id}/${booking.id}?token=${
           encodeURIComponent(booking.cancelToken)
         }`;
-        const cancelUrl = new URL(cancelPath, baseUrl ?? req.url).href;
+        const cancelUrl = new URL(cancelPath, await getBaseUrl(req.url)).href;
         try {
           await sendMail({
             email: booking.email,

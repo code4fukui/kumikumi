@@ -2,6 +2,7 @@
   "gmailAddress": "your-address@gmail.com",
   "appPassword": "xxxx xxxx xxxx xxxx",
   "mailSubject": "【くみくみ】予約確認",
+  "baseURL": "https://example.com/",
   "slotTime": 30,
   "titleLogo": "/logo.png",
   "keyColor": "#168458"
