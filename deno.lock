@@ -1,0 +1,17 @@
+{
+  "version": "5",
+  "specifiers": {
+    "npm:nodemailer@*": "9.0.1"
+  },
+  "npm": {
+    "nodemailer@9.0.1": {
+      "integrity": "sha512-Gwv8SQewT616ZM/URn0H54b8PWo/Wum7md3EW2aWy1lO27+WZCX+Xyak3J+NlmHUjDh5ME+uesJUDRbR3Ye8Bw=="
+    }
+  },
+  "remote": {
+    "https://code4fukui.github.io/Base64/Base64.js": "46cf1f7d46e4ca506d58d13e070a2f6fe350ea7d1b5e41ce6251928131fde7c1",
+    "https://code4fukui.github.io/EXT/EXT.js": "165d83c7a90fa144b474a4e3cfc510ce4aeae1085d3cb761e1d2ee9a41bdf010",
+    "https://code4fukui.github.io/Gmailer/Gmailer.js": "fec6a397f263b2d2a48926a7217cbea0b30db5404e42f684fded1b86b5bac9bb",
+    "https://code4fukui.github.io/MIMEType/MIME_TYPE.js": "f18cad02d4022529a16d0942ce0f254362fa7f62f940db0a0bd6359188e4a358"
+  }
+}
