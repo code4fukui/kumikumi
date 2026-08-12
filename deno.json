@@ -1,8 +1,8 @@
 {
   "tasks": {
-    "start": "deno run --allow-net --allow-read --allow-write server.js",
-    "dev": "deno run --watch --allow-net --allow-read --allow-write server.js",
-    "test": "deno test --allow-read --allow-write"
+    "start": "deno run --allow-net --allow-read --allow-write --allow-env server.js",
+    "dev": "deno run --watch --allow-net --allow-read --allow-write --allow-env server.js",
+    "test": "deno test --allow-read --allow-write --allow-env"
   },
   "fmt": {
     "lineWidth": 100
