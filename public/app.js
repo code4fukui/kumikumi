@@ -23,6 +23,31 @@ const field = (label, name, type = "text", required = true) =>
   `<label for="${name}">${label}</label><input id="${name}" name="${name}" type="${type}" ${
     required ? "required" : ""
   }>`;
+const bookingContactStorageKey = "kumikumi.bookingContact";
+
+function restoreBookingContact(form) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(bookingContactStorageKey) ?? "null");
+    if (!saved || typeof saved !== "object") return;
+    for (const name of ["company", "familyName", "givenName", "email"]) {
+      if (typeof saved[name] === "string") form.elements[name].value = saved[name];
+    }
+  } catch {
+    // localStorageが利用できない場合や保存内容が壊れている場合は、空欄のまま利用する。
+  }
+}
+
+function saveBookingContact(form) {
+  try {
+    const contact = {};
+    for (const name of ["company", "familyName", "givenName", "email"]) {
+      contact[name] = form.elements[name].value;
+    }
+    localStorage.setItem(bookingContactStorageKey, JSON.stringify(contact));
+  } catch {
+    // ストレージの制限があっても予約操作は継続できるようにする。
+  }
+}
 
 function createPage(config) {
   app.innerHTML = `<h1>予約スケジュールを作る</h1><form id="create">${
@@ -123,11 +148,24 @@ async function bookPage(id) {
       }
     );
     const form = document.querySelector("#booking");
+    restoreBookingContact(form);
+    for (const name of ["company", "familyName", "givenName", "email"]) {
+      form.elements[name].addEventListener("input", () => saveBookingContact(form));
+    }
     form.onsubmit = async (e) => {
       e.preventDefault();
       const msg = document.querySelector("#message");
+      const submit = document.querySelector("#submit-booking");
+      if (submit.disabled) return;
+      submit.disabled = true;
+      submit.classList.add("processing");
+      submit.setAttribute("aria-busy", "true");
+      submit.textContent = "予約処理中…";
+      msg.className = "";
+      msg.textContent = "";
       try {
         const body = Object.fromEntries(new FormData(form));
+        saveBookingContact(form);
         const result = await request(`/api/schedules/${id}/bookings`, {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -139,6 +177,10 @@ async function bookPage(id) {
       } catch (err) {
         msg.className = "message error";
         msg.textContent = err.message;
+        submit.disabled = err.status === 409 || !form.slot.value;
+        submit.classList.remove("processing");
+        submit.removeAttribute("aria-busy");
+        submit.textContent = "この時間で予約";
         if (err.status === 409) setTimeout(() => bookPage(id), 1800);
       }
     };

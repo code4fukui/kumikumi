@@ -118,6 +118,28 @@ button:disabled {
   opacity: .55;
   cursor: not-allowed;
 }
+button.processing::before {
+  content: "";
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  margin-right: .55em;
+  border: 2px solid currentcolor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  vertical-align: -.15em;
+  animation: spin .7s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion:reduce) {
+  button.processing::before {
+    animation-duration: 1.8s;
+  }
+}
 .mail-notice,
 .selected-slot {
   color: #74636a;
