@@ -195,6 +195,19 @@ export function createApp(options = {}) {
           });
         } catch (e) {
           console.error("予約確認メールを送信できませんでした", e);
+          try {
+            await Deno.mkdir(`${dataDir}/log`, { recursive: true });
+            const detail = e instanceof Error ? e.stack ?? e.message : String(e);
+            await Deno.writeTextFile(
+              `${dataDir}/log/err.log`,
+              `${new Date().toISOString()} schedule=${schedule.id} recipient=${booking.email} ${
+                detail.replaceAll("\n", "\\n")
+              }\n`,
+              { append: true, create: true },
+            );
+          } catch (logError) {
+            console.error("メール送信エラーをログへ記録できませんでした", logError);
+          }
           return error("確認メールを送信できなかったため、予約を登録できませんでした", 502);
         }
         bookings.push(booking);

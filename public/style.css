@@ -62,6 +62,7 @@ input {
   padding: 11px;
   border: 1px solid #b7c7bd;
   border-radius: 8px;
+  font-size: max(16px,1em);
 }
 .name-fields {
   display: grid;
@@ -112,6 +113,18 @@ button.secondary {
 }
 button.danger {
   background: #a20b38;
+}
+button:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+.mail-notice,
+.selected-slot {
+  color: #74636a;
+  font-size: .9rem;
+}
+footer {
+  min-height: 30vh;
 }
 button:focus-visible,
 input:focus-visible,
@@ -267,6 +280,9 @@ td {
 @media (max-width:600px) {
   main {
     padding: 12px;
+  }
+  footer {
+    min-height: 55vh;
   }
   section {
     padding: 19px;

@@ -155,6 +155,10 @@ Deno.test("メール送信に失敗した場合は予約を登録しない", asy
   assertEquals(response.status, 502);
   const afterFailure = await (await handler(new Request(`http://test${schedulePath}`))).json();
   assertEquals(afterFailure.occupiedSlots, []);
+  const errorLog = await Deno.readTextFile(`${dir}/log/err.log`);
+  if (!errorLog.includes("SMTP error") || !errorLog.includes(`schedule=${created.id}`)) {
+    throw new Error("メール送信エラーがerr.logに記録されていません");
+  }
 });
 
 Deno.test("config.jsonの表示設定だけを公開する", async () => {

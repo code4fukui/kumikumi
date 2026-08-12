@@ -107,18 +107,19 @@ async function bookPage(id) {
         }</div></section>`
       ).join("") ||
       "予約可能な時間はありません。"
-    }</div><form id="booking" hidden><input type="hidden" name="slot"><div class="booking-fields"><div class="booking-field">${
+    }</div><form id="booking"><input type="hidden" name="slot"><div class="booking-fields"><div class="booking-field">${
       field("会社名", "company")
     }</div><div class="booking-field"><span class="field-label">姓名</span><div class="name-fields"><label for="familyName">姓<input id="familyName" name="familyName" required></label><label for="givenName">名<input id="givenName" name="givenName" required></label></div></div><div class="booking-field">${
       field("メールアドレス", "email", "email")
-    }</div></div><p><button>この時間で予約</button></p></form><div id="message"></div>`;
+    }</div></div><p class="mail-notice">「この時間で予約」を押すと、設定されたメールアドレスから確認メールが送信されます。</p><p><button id="submit-booking" disabled>この時間で予約</button></p><p id="selected-slot" class="selected-slot" role="status">希望時間帯を選択してください。</p></form><div id="message"></div>`;
     document.querySelectorAll(".slot:not(:disabled)").forEach((b) =>
       b.onclick = () => {
         document.querySelectorAll(".slot").forEach((x) => x.classList.remove("selected"));
         b.classList.add("selected");
         const form = document.querySelector("#booking");
-        form.hidden = false;
         form.slot.value = b.dataset.slot;
+        document.querySelector("#submit-booking").disabled = false;
+        document.querySelector("#selected-slot").textContent = `選択中: ${date(b.dataset.slot)}`;
       }
     );
     const form = document.querySelector("#booking");
