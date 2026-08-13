@@ -361,8 +361,7 @@ async function bookPage(id) {
 
 async function adminPage(id) {
   try {
-    const token = new URLSearchParams(location.search).get("token") ?? "";
-    const s = await request(`/api/admin/${id}?token=${encodeURIComponent(token)}`);
+    const s = await request(`/api/admin/${id}`);
     const adminTitle = `${s.title} - くみくみ管理画面`;
     document.title = adminTitle;
     const bySlot = new Map(s.bookings.map((b) => [b.slot, b]));
@@ -373,9 +372,9 @@ async function adminPage(id) {
       slotsByDay.get(key).push(slot);
     }
     const bookingUrl = `${location.origin}/book/${id}`;
-    app.innerHTML = `<h1>${
+    app.innerHTML = `<p><a href="/manage">← 作成者ページへ戻る</a></p><h1>${
       esc(adminTitle)
-    }</h1><div class="message admin-bookmark"><strong>このページをブックマークしてください</strong><p>この管理画面はトークン付きの固有URLです。</p></div><p>予約 ${s.bookings.length} / ${s.slots.length}件</p><div class="urls share-url"><label for="booking-url">ユーザー向けURL</label><div><input id="booking-url" value="${bookingUrl}" readonly><a class="button" href="/book/${id}" target="_blank" rel="noopener noreferrer">新規ウィンドウで開く</a><button id="copy-booking-url" type="button">URLをコピー</button></div><p id="copy-status" class="copy-status" role="status"></p></div><div>${
+    }</h1><div class="message"><p>この管理画面の操作には承認済みのログインが必要です。</p></div><p>予約 ${s.bookings.length} / ${s.slots.length}件</p><div class="urls share-url"><label for="booking-url">予約者向けURL</label><div><input id="booking-url" value="${bookingUrl}" readonly><a class="button" href="/book/${id}" target="_blank" rel="noopener noreferrer">新規ウィンドウで開く</a><button id="copy-booking-url" type="button">URLをコピー</button></div><p id="copy-status" class="copy-status" role="status"></p></div><div>${
       [...slotsByDay].map(([dateLabel, slots]) =>
         `<section class="admin-day"><h2>${
           esc(dateLabel)
@@ -423,7 +422,7 @@ async function adminPage(id) {
       const button = e.target.querySelector("button");
       button.disabled = true;
       try {
-        const result = await request(`/api/admin/${id}?token=${encodeURIComponent(token)}`, {
+        const result = await request(`/api/admin/${id}`, {
           method: "PATCH",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
@@ -448,7 +447,7 @@ async function adminPage(id) {
       const button = e.target.querySelector("button");
       button.disabled = true;
       try {
-        await request(`/api/admin/${id}?token=${encodeURIComponent(token)}`, {
+        await request(`/api/admin/${id}`, {
           method: "PATCH",
           headers: { "content-type": "application/json" },
           body: JSON.stringify(Object.fromEntries(new FormData(e.target))),
@@ -471,7 +470,7 @@ async function adminPage(id) {
       button.disabled = true;
       button.textContent = "削除中…";
       try {
-        await request(`/api/admin/${id}?token=${encodeURIComponent(token)}`, {
+        await request(`/api/admin/${id}`, {
           method: "DELETE",
         });
         location.assign("/manage");
@@ -483,7 +482,8 @@ async function adminPage(id) {
       }
     };
   } catch (err) {
-    app.innerHTML = `<div class="message error">${esc(err.message)}</div>`;
+    if (err.status === 401) location.assign("/");
+    else app.innerHTML = `<div class="message error">${esc(err.message)}</div>`;
   }
 }
 

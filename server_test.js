@@ -9,22 +9,30 @@ function assertEquals(actual, expected) {
 
 Deno.test("作成、予約、管理、および二重予約の拒否", async () => {
   const dir = await Deno.makeTempDir();
+  const configPath = `${dir}/config.json`;
+  await Deno.writeTextFile(configPath, JSON.stringify({ adminUser: "admin", adminPass: "secret" }));
   const sentMails = [];
   const handler = createApp({
     dataDir: dir,
     publicDir: "public",
-    configPath: `${dir}/missing.json`,
+    configPath,
     baseUrl: "https://kumikumi.example",
     sendMail: (mail) => sentMails.push(mail),
   });
+  let cookie = "";
   const call = (path, method = "GET", body) =>
     handler(
       new Request(`http://test${path}`, {
         method,
-        headers: body ? { "content-type": "application/json" } : {},
+        headers: {
+          ...(body ? { "content-type": "application/json" } : {}),
+          ...(cookie ? { cookie } : {}),
+        },
         body: body && JSON.stringify(body),
       }),
     );
+  const login = await call("/api/login", "POST", { user: "admin", pass: "secret" });
+  cookie = login.headers.get("set-cookie")?.split(";")[0] ?? "";
   const createdResponse = await call("/api/schedules", "POST", {
     title: "面談",
     slotMinutes: 30,
@@ -33,9 +41,7 @@ Deno.test("作成、予約、管理、および二重予約の拒否", async () 
   assertEquals(createdResponse.status, 201);
   const created = await createdResponse.json();
   assertEquals(created.bookingUrl, `/book/${created.id}`);
-  if (!created.adminUrl.startsWith(`/admin/${created.id}?token=`)) {
-    throw new Error("トークン付き管理URLが発行されていません");
-  }
+  assertEquals(created.adminUrl, `/admin/${created.id}`);
   const schedule = await (await call(`/api/schedules/${created.id}`)).json();
   assertEquals(schedule.slots.length, 2);
   const booking = {
@@ -60,8 +66,8 @@ Deno.test("作成、予約、管理、および二重予約の拒否", async () 
   const afterBooking = await (await call(`/api/schedules/${created.id}`)).json();
   assertEquals(afterBooking.slots.length, 2);
   assertEquals(afterBooking.occupiedSlots, [booking.slot]);
-  const token = new URL(`http://test${created.adminUrl}`).searchParams.get("token");
-  const admin = await (await call(`/api/admin/${created.id}?token=${token}`)).json();
+  assertEquals((await handler(new Request(`http://test/api/admin/${created.id}`))).status, 401);
+  const admin = await (await call(`/api/admin/${created.id}`)).json();
   assertEquals(admin.bookings[0].email, "taro@example.jp");
   assertEquals(admin.bookings[0].familyName, "山田");
   assertEquals(admin.history[0].type, "registered");
@@ -75,25 +81,28 @@ Deno.test("作成、予約、管理、および二重予約の拒否", async () 
   const afterCancel = await (await call(`/api/schedules/${created.id}`)).json();
   assertEquals(afterCancel.occupiedSlots, []);
   assertEquals((await call(cancelApi)).status, 404);
-  const adminAfterCancel = await (await call(`/api/admin/${created.id}?token=${token}`)).json();
+  const adminAfterCancel = await (await call(`/api/admin/${created.id}`)).json();
   assertEquals(adminAfterCancel.history.map((item) => item.type), ["registered", "cancelled"]);
-  const updateMail = await call(`/api/admin/${created.id}?token=${token}`, "PATCH", {
+  const updateMail = await call(`/api/admin/${created.id}`, "PATCH", {
     mailSubject: "{{title}} 更新後",
     mailBody: "{{familyName}}様 {{date}} {{cancelUrl}}",
   });
   assertEquals(updateMail.status, 200);
-  const addSlots = await call(`/api/admin/${created.id}?token=${token}`, "PATCH", {
+  const addSlots = await call(`/api/admin/${created.id}`, "PATCH", {
     ranges: [{ start: "2030-01-02T00:00:00.000Z", end: "2030-01-02T01:00:00.000Z" }],
   });
   assertEquals(addSlots.status, 200);
   assertEquals((await addSlots.json()).addedCount, 2);
-  const adminAfterUpdate = await (await call(`/api/admin/${created.id}?token=${token}`)).json();
+  const adminAfterUpdate = await (await call(`/api/admin/${created.id}`)).json();
   assertEquals(adminAfterUpdate.mailSubject, "{{title}} 更新後");
   assertEquals(adminAfterUpdate.mailBody, "{{familyName}}様 {{date}} {{cancelUrl}}");
   assertEquals(adminAfterUpdate.slots.length, 4);
-  assertEquals((await call(`/api/admin/${created.id}?token=wrong`, "PATCH", {})).status, 403);
-  assertEquals((await call(`/api/admin/${created.id}?token=wrong`, "DELETE")).status, 403);
-  assertEquals((await call(`/api/admin/${created.id}?token=${token}`, "DELETE")).status, 200);
+  assertEquals(
+    (await handler(new Request(`http://test/api/admin/${created.id}`, { method: "DELETE" })))
+      .status,
+    401,
+  );
+  assertEquals((await call(`/api/admin/${created.id}`, "DELETE")).status, 200);
   assertEquals((await call(`/api/schedules/${created.id}`)).status, 404);
   for (const type of ["schedules", "bookings", "history"]) {
     try {
@@ -359,9 +368,7 @@ Deno.test("管理者認証を設定した場合はログイン後だけスケジ
   assertEquals(list.schedules.length, 1);
   assertEquals(list.schedules[0].title, "面談");
   assertEquals(list.schedules[0].creatorName, "admin");
-  if (!list.schedules[0].adminUrl.startsWith(`/admin/${created.id}?token=`)) {
-    throw new Error("一覧に管理URLがありません");
-  }
+  assertEquals(list.schedules[0].adminUrl, `/admin/${created.id}`);
   const users = await (await handler(
     new Request("http://test/api/admin/users", { headers: { cookie } }),
   )).json();

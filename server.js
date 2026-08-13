@@ -341,7 +341,7 @@ export function createApp(options = {}) {
               createdAt: schedule.createdAt,
               slotCount: schedule.slots.length,
               bookingCount: bookings.length,
-              adminUrl: `/admin/${schedule.id}?token=${schedule.adminToken}`,
+              adminUrl: `/admin/${schedule.id}`,
               bookingUrl: `/book/${schedule.id}`,
             });
           } catch (e) {
@@ -390,10 +390,8 @@ export function createApp(options = {}) {
       }
       if (!slots.length) return error("予約可能なスロットがありません");
       const id = crypto.randomUUID();
-      const adminToken = crypto.randomUUID();
       await write("schedules", id, {
         id,
-        adminToken,
         ownerId: actor?.userId ?? null,
         ownerName: actor?.name ?? "不明",
         title,
@@ -404,7 +402,7 @@ export function createApp(options = {}) {
         createdAt: new Date().toISOString(),
       });
       return json(
-        { id, bookingUrl: `/book/${id}`, adminUrl: `/admin/${id}?token=${adminToken}` },
+        { id, bookingUrl: `/book/${id}`, adminUrl: `/admin/${id}` },
         201,
       );
     }
@@ -563,11 +561,10 @@ export function createApp(options = {}) {
 
     const adminMatch = url.pathname.match(/^\/api\/admin\/([^/]+)$/);
     if (req.method === "GET" && adminMatch) {
+      const actor = await currentActor(req);
+      if (!actor) return error("ログインまたは承認が必要です", 401);
       const schedule = await read("schedules", adminMatch[1]);
       if (!schedule) return error("スケジュールが見つかりません", 404);
-      if (url.searchParams.get("token") !== schedule.adminToken) {
-        return error("管理URLが正しくありません", 403);
-      }
       return json({
         id: schedule.id,
         title: schedule.title,
@@ -580,12 +577,11 @@ export function createApp(options = {}) {
       });
     }
     if (req.method === "PATCH" && adminMatch) {
+      const actor = await currentActor(req);
+      if (!actor) return error("ログインまたは承認が必要です", 401);
       return await locked(adminMatch[1], async () => {
         const schedule = await read("schedules", adminMatch[1]);
         if (!schedule) return error("スケジュールが見つかりません", 404);
-        if (url.searchParams.get("token") !== schedule.adminToken) {
-          return error("管理URLが正しくありません", 403);
-        }
         let body;
         try {
           body = await req.json();
@@ -623,12 +619,11 @@ export function createApp(options = {}) {
       });
     }
     if (req.method === "DELETE" && adminMatch) {
+      const actor = await currentActor(req);
+      if (!actor) return error("ログインまたは承認が必要です", 401);
       return await locked(adminMatch[1], async () => {
         const schedule = await read("schedules", adminMatch[1]);
         if (!schedule) return error("スケジュールが見つかりません", 404);
-        if (url.searchParams.get("token") !== schedule.adminToken) {
-          return error("管理URLが正しくありません", 403);
-        }
         await remove("bookings", schedule.id);
         await remove("history", schedule.id);
         await remove("schedules", schedule.id);
