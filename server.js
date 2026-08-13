@@ -73,7 +73,21 @@ export function createApp(options = {}) {
   }
 
   function session(req) {
-    return sessions.get(sessionToken(req)) ?? null;
+    const token = sessionToken(req);
+    const value = sessions.get(token) ?? null;
+    if (value && value.expiresAt <= Date.now()) {
+      sessions.delete(token);
+      return null;
+    }
+    return value;
+  }
+
+  function lifetimeMilliseconds(config) {
+    const hours = typeof config.lifetimeSession === "number" &&
+        Number.isFinite(config.lifetimeSession) && config.lifetimeSession > 0
+      ? config.lifetimeSession
+      : 24;
+    return hours * 60 * 60 * 1000;
   }
 
   async function hashPassword(password) {
@@ -218,9 +232,10 @@ export function createApp(options = {}) {
         return error("ユーザー名とパスワードを入力してください");
       }
       const token = createSessionID();
+      const expiresAt = Date.now() + lifetimeMilliseconds(config);
       let loginResult;
       if (name === config.adminUser && password === config.adminPass) {
-        loginResult = { role: "developer", name, approved: true };
+        loginResult = { role: "developer", name, approved: true, expiresAt };
       } else {
         const users = await allUsers();
         let user = users.find((item) => item.name === name);
@@ -248,21 +263,25 @@ export function createApp(options = {}) {
           name: user.name,
           userId: user.id,
           approved: user.approved,
+          expiresAt,
         };
       }
       sessions.set(token, loginResult);
       const secure = config.cookieSecure === true ? "; Secure" : "";
+      const maxAge = Math.max(0, Math.floor((loginResult.expiresAt - Date.now()) / 1000));
       return new Response(JSON.stringify({ ok: true, ...loginResult }), {
         headers: {
           "content-type": "application/json",
           "cache-control": "no-store",
-          "set-cookie": `kumikumi_session=${token}; Path=/; HttpOnly; SameSite=Strict${secure}`,
+          "set-cookie":
+            `kumikumi_session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}${secure}`,
         },
       });
     }
 
     if (req.method === "POST" && url.pathname === "/api/logout") {
-      sessions.delete(sessionToken(req));
+      const token = sessionToken(req);
+      sessions.delete(token);
       const config = await getConfig();
       const secure = config.cookieSecure === true ? "; Secure" : "";
       return new Response(JSON.stringify({ ok: true }), {

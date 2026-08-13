@@ -301,7 +301,12 @@ Deno.test("管理者認証を設定した場合はログイン後だけスケジ
   const configPath = `${dir}/config.json`;
   await Deno.writeTextFile(
     configPath,
-    JSON.stringify({ adminUser: "admin", adminPass: "secret", cookieSecure: true }),
+    JSON.stringify({
+      adminUser: "admin",
+      adminPass: "secret",
+      cookieSecure: true,
+      lifetimeSession: 1,
+    }),
   );
   const handler = createApp({ dataDir: dir, publicDir: "public", configPath });
   const schedule = {
@@ -327,6 +332,9 @@ Deno.test("管理者認証を設定した場合はログイン後だけスケジ
   if (!login.headers.get("set-cookie")?.includes("Secure")) {
     throw new Error("cookieSecureがCookieに反映されていません");
   }
+  if (!/Max-Age=3(?:599|600)/.test(login.headers.get("set-cookie") ?? "")) {
+    throw new Error("lifetimeSessionがCookieへ反映されていません");
+  }
   const cookie = login.headers.get("set-cookie")?.split(";")[0] ?? "";
   const sessionId = cookie.split("=")[1];
   if (!/^[0-9A-Za-z_-]{44}$/.test(sessionId)) {
@@ -337,6 +345,12 @@ Deno.test("管理者認証を設定した場合はログイン後だけスケジ
   const created = await createdResponse.json();
   const unauthorizedList = await handler(new Request("http://test/api/admin/schedules"));
   assertEquals(unauthorizedList.status, 401);
+  const mismatchedCookie = await handler(
+    new Request("http://test/api/admin/schedules", {
+      headers: { cookie: "kumikumi_session=not-an-approved-session" },
+    }),
+  );
+  assertEquals(mismatchedCookie.status, 401);
   const listResponse = await handler(
     new Request("http://test/api/admin/schedules", { headers: { cookie } }),
   );

@@ -4,6 +4,7 @@
   "adminUser": "admin",
   "adminPass": "change-this-password",
   "cookieSecure": false,
+  "lifetimeSession": 24,
   "baseURL": "https://example.com/",
   "slotTime": 30,
   "titleLogo": "/logo.png",

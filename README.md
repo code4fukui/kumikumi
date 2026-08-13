@@ -9,10 +9,13 @@
 - 管理画面のセッションは HttpOnly Cookie で管理する
   - config.json の cookieSecure を true とすることで secure オプションを追加する
   - セッションIDは https://github.com/code4fukui/sessionid の createSessionID を使用
+  - セッションIDの有効期間は config.json の lifetimeSession
+    に時間単位の数値で設定する（初期値24、1日間）
 - 利用者は、開発者、管理者、作成者、予約者の4種類
   - 開発者は config.json の adminUser, adminPass でログイン可能
   - 管理者は作成者の内、開発者または管理者に、管理者として設定された者
   - 作成者は、ユーザー名に名前、パスワード欄に合言葉を書くと承認待ちになり、承認後は即利用可能となる
+    - HttpOnly Cookie が承認されたものと一致しない場合はログインできない
   - 予約者ーはURLを知る人であれば承認なく利用可能
 - トップページはくみくみの説明ページとして、管理者用ログインボタンを配置
   - 管理者ログインボタンを押すと、HttpOnly Cookie 承認済みであれば、そのまま作成者画面へ遷移
