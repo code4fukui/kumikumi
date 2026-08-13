@@ -45,6 +45,79 @@ section {
 h1 {
   margin-top: 0;
 }
+.lead {
+  font-size: 1.15rem;
+  line-height: 1.8;
+}
+.home-features {
+  margin: 24px 0;
+  padding: 16px 20px;
+  border-left: 4px solid var(--key-color);
+  background: var(--key-pale);
+  line-height: 1.7;
+}
+.inline-login {
+  max-width: 420px;
+  margin-top: 24px;
+}
+.manage-heading,
+.page-actions,
+.schedule-list article,
+.schedule-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.manage-heading {
+  justify-content: space-between;
+}
+.page-actions {
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.schedule-list article {
+  justify-content: space-between;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--key-border);
+}
+.schedule-list h3,
+.schedule-list p {
+  margin: 4px 0;
+}
+.creator-management {
+  margin-top: 32px;
+  padding: 20px;
+  border: 1px solid #cbd9d0;
+  box-shadow: none;
+}
+.creator-list article {
+  display: grid;
+  grid-template-columns: minmax(120px,1fr) minmax(120px,1fr) auto auto auto;
+  gap: 14px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--key-border);
+}
+.creator-list .passphrase {
+  overflow-wrap: anywhere;
+}
+.creator-list .passphrase small {
+  display: block;
+  color: #74636a;
+}
+.creator-list label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin: 0;
+}
+.creator-list input {
+  width: auto;
+}
+.schedule-list p {
+  color: #74636a;
+  font-size: .9rem;
+}
 a {
   color: var(--key-dark);
 }
@@ -54,15 +127,35 @@ label {
   font-weight: 650;
 }
 input,
+textarea,
 button {
   font: inherit;
 }
-input {
+input,
+textarea {
   width: 100%;
   padding: 11px;
   border: 1px solid #b7c7bd;
   border-radius: 8px;
   font-size: max(16px,1em);
+}
+textarea {
+  resize: vertical;
+}
+.mail-settings {
+  margin-top: 24px;
+  padding: 16px;
+  border: 1px solid #cbd9d0;
+  border-radius: 10px;
+}
+.mail-settings legend {
+  padding: 0 6px;
+  font-weight: 700;
+}
+.template-help {
+  color: #74636a;
+  font-size: .85rem;
+  overflow-wrap: anywhere;
 }
 .name-fields {
   display: grid;
@@ -281,6 +374,23 @@ table {
   border: 1px solid #cbd9d0;
   box-shadow: none;
 }
+.admin-editor,
+.delete-schedule {
+  margin-top: 28px;
+  padding: 20px;
+  border: 1px solid #cbd9d0;
+  box-shadow: none;
+}
+.delete-schedule {
+  border: 1px solid #e2b7c1;
+}
+.admin-editor h2,
+.delete-schedule h2 {
+  margin-top: 0;
+}
+.delete-schedule h2 {
+  color: #8d1733;
+}
 .history ul {
   margin: 0;
   padding: 0;
@@ -336,5 +446,13 @@ td {
   }
   table {
     font-size: .85rem;
+  }
+  .manage-heading,
+  .schedule-list article {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .creator-list article {
+    grid-template-columns: 1fr 1fr;
   }
 }

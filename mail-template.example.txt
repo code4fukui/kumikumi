@@ -1,3 +1,5 @@
+Subject: {{title}} くみくみ確認メール
+
 {{familyName}} {{givenName}} 様
 
 「{{title}}」の予約を受け付けました。

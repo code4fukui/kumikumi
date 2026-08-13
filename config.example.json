@@ -1,7 +1,9 @@
 {
   "gmailAddress": "your-address@gmail.com",
   "appPassword": "xxxx xxxx xxxx xxxx",
-  "mailSubject": "【くみくみ】予約確認",
+  "adminUser": "admin",
+  "adminPass": "change-this-password",
+  "cookieSecure": false,
   "baseURL": "https://example.com/",
   "slotTime": 30,
   "titleLogo": "/logo.png",

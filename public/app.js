@@ -50,9 +50,14 @@ function saveBookingContact(form) {
 }
 
 function createPage(config) {
-  app.innerHTML = `<h1>予約スケジュールを作る</h1><form id="create">${
-    field("タイトル", "title")
-  }<label for="minutes">1スロットの時間（分）</label><input id="minutes" name="slotMinutes" type="number" min="5" max="480" value="${config.slotTime}" required><label>予約可能日時</label><div id="dates"></div><button type="button" class="secondary" id="add-date">＋ 日付を追加</button><p><button>スケジュールを作成</button></p><div id="message"></div></form>`;
+  app.innerHTML =
+    `<div class="page-actions"><a href="/manage">← 作成者ページへ戻る</a><button type="button" class="secondary logout">ログアウト</button></div><h1>新規スケジュール作成</h1><form id="create">${
+      field("タイトル", "title")
+    }<label for="minutes">1スロットの時間（分）</label><input id="minutes" name="slotMinutes" type="number" min="5" max="480" value="${config.slotTime}" required><label>予約可能日時</label><div id="dates"></div><button type="button" class="secondary" id="add-date">＋ 日付を追加</button><fieldset class="mail-settings"><legend>予約確認メール</legend><label for="mailSubject">メールタイトル</label><input id="mailSubject" name="mailSubject" value="${
+      esc(config.mailSubject)
+    }" maxlength="200" required><label for="mailBody">メール本文</label><textarea id="mailBody" name="mailBody" maxlength="20000" rows="12" required>${
+      esc(config.mailBody)
+    }</textarea><p class="template-help">差し込み項目: {{title}} {{date}} {{company}} {{familyName}} {{givenName}} {{cancelUrl}}</p></fieldset><p><button>スケジュールを作成</button></p><div id="message"></div></form>`;
 
   const addTime = (dateGroup) => {
     const row = document.createElement("div");
@@ -74,6 +79,7 @@ function createPage(config) {
   };
   addDate();
   document.querySelector("#add-date").onclick = addDate;
+  bindLogout();
   document.querySelector("#create").onsubmit = async (e) => {
     e.preventDefault();
     const msg = document.querySelector("#message");
@@ -93,6 +99,8 @@ function createPage(config) {
       const body = {
         title: f.get("title"),
         slotMinutes: Number(f.get("slotMinutes")),
+        mailSubject: f.get("mailSubject"),
+        mailBody: f.get("mailBody"),
         ranges,
       };
       const result = await request("/api/schedules", {
@@ -106,6 +114,168 @@ function createPage(config) {
       msg.textContent = err.message;
     }
   };
+}
+
+function bindLogout() {
+  document.querySelectorAll(".logout").forEach((button) => {
+    button.onclick = async () => {
+      button.disabled = true;
+      try {
+        await request("/api/logout", { method: "POST" });
+      } finally {
+        location.assign("/");
+      }
+    };
+  });
+}
+
+function loginPage(config) {
+  app.innerHTML = `<p><a href="/">← トップへ戻る</a></p><h1>管理者ログイン</h1><form id="login">${
+    field("ユーザー名", "user")
+  }${
+    field("パスワード", "pass", "password")
+  }<p><button>ログイン</button></p><div id="message"></div></form>`;
+  document.querySelector("#login").onsubmit = async (e) => {
+    e.preventDefault();
+    const button = e.target.querySelector("button");
+    const msg = document.querySelector("#message");
+    button.disabled = true;
+    try {
+      const result = await request("/api/login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(Object.fromEntries(new FormData(e.target))),
+      });
+      if (result.approved) location.assign("/manage");
+      else {
+        msg.className = "message";
+        msg.textContent = "利用申請を受け付けました。管理者の承認後にログインできます。";
+        button.disabled = false;
+      }
+    } catch (err) {
+      msg.className = "message error";
+      msg.textContent = err.message;
+      button.disabled = false;
+    }
+  };
+}
+
+function homePage(config) {
+  app.innerHTML =
+    `<h1>くみくみ</h1><p class="lead">空いている時間を組み合わせて、予約日程をかんたんに調整できるサービスです。</p><div class="home-features"><p>管理者が予約可能な日時を設定し、発行されたURLを相手へ共有できます。</p><p>予約者は希望時間を選ぶだけ。予約確認とキャンセル用URLはメールで届きます。</p></div><p><button id="show-login">管理者用ログイン</button></p><div id="login-area"></div>`;
+  document.querySelector("#show-login").onclick = () => {
+    if (!config.authRequired || config.authenticated) {
+      location.assign("/manage");
+      return;
+    }
+    const area = document.querySelector("#login-area");
+    area.innerHTML = `<form id="login" class="inline-login">${field("ユーザー名", "user")}${
+      field("パスワード", "pass", "password")
+    }<p><button>ログイン</button></p><div id="message"></div></form>`;
+    document.querySelector("#show-login").hidden = true;
+    area.querySelector("#login").onsubmit = async (e) => {
+      e.preventDefault();
+      const button = e.target.querySelector("button");
+      const msg = area.querySelector("#message");
+      button.disabled = true;
+      try {
+        const result = await request("/api/login", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(Object.fromEntries(new FormData(e.target))),
+        });
+        if (result.approved) location.assign("/manage");
+        else {
+          msg.className = "message";
+          msg.textContent = "利用申請を受け付けました。管理者の承認後にログインできます。";
+          button.disabled = false;
+        }
+      } catch (err) {
+        msg.className = "message error";
+        msg.textContent = err.message;
+        button.disabled = false;
+      }
+    };
+    area.querySelector('[name="user"]').focus();
+  };
+}
+
+async function managePage(config) {
+  if (config.authRequired && !config.authenticated) {
+    loginPage(config);
+    return;
+  }
+  try {
+    const result = await request("/api/admin/schedules");
+    let usersHtml = "";
+    if (["developer", "admin"].includes(result.role)) {
+      const userResult = await request("/api/admin/users");
+      usersHtml = `<section class="creator-management"><h2>作成者一覧</h2>${
+        userResult.users.length
+          ? `<div class="creator-list">${
+            userResult.users.map((user) =>
+              `<article data-user-id="${user.id}"><strong>${
+                esc(user.name)
+              }</strong><span class="passphrase"><small>合言葉</small>${
+                user.passphrase === undefined ? "（未保存）" : esc(user.passphrase)
+              }</span><label><input type="checkbox" name="approved" ${
+                user.approved ? "checked" : ""
+              }> 承認</label><label><input type="checkbox" name="isAdmin" ${
+                user.isAdmin ? "checked" : ""
+              }> 管理者</label><button type="button" class="danger delete-user">削除</button></article>`
+            ).join("")
+          }</div>`
+          : "<p>作成者はいません。</p>"
+      }</section>`;
+    }
+    app.innerHTML = `<div class="page-actions"><span>${
+      esc(result.name)
+    } としてログイン中</span><button type="button" class="secondary logout">ログアウト</button></div><div class="manage-heading"><h1>作成者ページ</h1><a class="button" href="/new">新規スケジュール作成</a></div><h2>作成済みスケジュール</h2>${
+      result.schedules.length
+        ? `<div class="schedule-list">${
+          result.schedules.map((s) =>
+            `<article><div><h3>${esc(s.title)}</h3><p>${
+              date(s.createdAt)
+            } 作成　予約 ${s.bookingCount} / ${s.slotCount}件</p></div><div class="schedule-actions"><a class="button" href="${
+              esc(s.adminUrl)
+            }">管理画面</a><a href="${
+              esc(s.bookingUrl)
+            }" target="_blank" rel="noopener noreferrer">予約ページ</a></div></article>`
+          ).join("")
+        }</div>`
+        : '<p class="message">作成済みのスケジュールはありません。</p>'
+    }${usersHtml}`;
+    bindLogout();
+    document.querySelectorAll(".creator-list article").forEach((row) => {
+      const update = async () => {
+        await request(`/api/admin/users/${row.dataset.userId}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            approved: row.querySelector('[name="approved"]').checked,
+            isAdmin: row.querySelector('[name="isAdmin"]').checked,
+          }),
+        });
+      };
+      row.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+        input.onchange = async () => {
+          if (!confirm("この作成者の権限を変更しますか？")) {
+            input.checked = !input.checked;
+            return;
+          }
+          await update();
+        };
+      });
+      row.querySelector(".delete-user").onclick = async () => {
+        if (!confirm("この作成者を削除しますか？")) return;
+        await request(`/api/admin/users/${row.dataset.userId}`, { method: "DELETE" });
+        row.remove();
+      };
+    });
+  } catch (err) {
+    if (err.status === 401) loginPage(config);
+    else app.innerHTML = `<div class="message error">${esc(err.message)}</div>`;
+  }
 }
 
 async function bookPage(id) {
@@ -230,7 +400,11 @@ async function adminPage(id) {
           ).join("")
         }</ul>`
         : "<p>履歴はありません。</p>"
-    }</section>`;
+    }</section><section class="admin-editor"><h2>予約枠を追加</h2><form id="add-slots"><div class="time-range"><label>日付<input type="date" name="date" required></label><label>開始<input type="time" name="start" value="10:00" required></label><label>終了<input type="time" name="end" value="12:00" required></label><button>追加</button></div><p class="template-help">1枠 ${s.slotMinutes}分で追加します。</p><div id="slot-update-message"></div></form></section><section class="admin-editor"><h2>予約確認メール</h2><form id="update-mail"><label for="admin-mail-subject">メールタイトル</label><input id="admin-mail-subject" name="mailSubject" value="${
+      esc(s.mailSubject)
+    }" maxlength="200" required><label for="admin-mail-body">メール本文</label><textarea id="admin-mail-body" name="mailBody" maxlength="20000" rows="12" required>${
+      esc(s.mailBody)
+    }</textarea><p class="template-help">差し込み項目: {{title}} {{date}} {{company}} {{familyName}} {{givenName}} {{cancelUrl}}</p><button>更新</button><div id="mail-update-message"></div></form></section><section class="delete-schedule"><h2>スケジュールの削除</h2><p>予約と履歴を含むすべてのデータが削除されます。この操作は取り消せません。</p><button id="delete-schedule" type="button" class="danger">このスケジュールを削除</button><div id="delete-message"></div></section>`;
     document.querySelector("#copy-booking-url").onclick = async () => {
       const status = document.querySelector("#copy-status");
       try {
@@ -240,6 +414,72 @@ async function adminPage(id) {
         const input = document.querySelector("#booking-url");
         input.select();
         status.textContent = "URLを選択しました。コピー操作を行ってください";
+      }
+    };
+    document.querySelector("#add-slots").onsubmit = async (e) => {
+      e.preventDefault();
+      const f = new FormData(e.target);
+      const msg = document.querySelector("#slot-update-message");
+      const button = e.target.querySelector("button");
+      button.disabled = true;
+      try {
+        const result = await request(`/api/admin/${id}?token=${encodeURIComponent(token)}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            ranges: [{
+              start: new Date(`${f.get("date")}T${f.get("start")}`).toISOString(),
+              end: new Date(`${f.get("date")}T${f.get("end")}`).toISOString(),
+            }],
+          }),
+        });
+        msg.className = "message";
+        msg.textContent = `${result.addedCount}件の予約枠を追加しました。`;
+        setTimeout(() => adminPage(id), 800);
+      } catch (err) {
+        msg.className = "message error";
+        msg.textContent = err.message;
+        button.disabled = false;
+      }
+    };
+    document.querySelector("#update-mail").onsubmit = async (e) => {
+      e.preventDefault();
+      const msg = document.querySelector("#mail-update-message");
+      const button = e.target.querySelector("button");
+      button.disabled = true;
+      try {
+        await request(`/api/admin/${id}?token=${encodeURIComponent(token)}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(Object.fromEntries(new FormData(e.target))),
+        });
+        msg.className = "message";
+        msg.textContent = "メール設定を更新しました。";
+      } catch (err) {
+        msg.className = "message error";
+        msg.textContent = err.message;
+      } finally {
+        button.disabled = false;
+      }
+    };
+    document.querySelector("#delete-schedule").onclick = async () => {
+      if (!confirm(`「${s.title}」を削除しますか？\n予約と履歴も削除され、元に戻せません。`)) {
+        return;
+      }
+      const button = document.querySelector("#delete-schedule");
+      const msg = document.querySelector("#delete-message");
+      button.disabled = true;
+      button.textContent = "削除中…";
+      try {
+        await request(`/api/admin/${id}?token=${encodeURIComponent(token)}`, {
+          method: "DELETE",
+        });
+        location.assign("/manage");
+      } catch (err) {
+        msg.className = "message error";
+        msg.textContent = err.message;
+        button.disabled = false;
+        button.textContent = "このスケジュールを削除";
       }
     };
   } catch (err) {
@@ -281,7 +521,15 @@ async function cancelPage(scheduleId, bookingId) {
 }
 
 async function start() {
-  let config = { titleLogo: "/logo.png", keyColor: "#168458", slotTime: 30 };
+  let config = {
+    titleLogo: "/logo.png",
+    keyColor: "#168458",
+    slotTime: 30,
+    authRequired: false,
+    authenticated: true,
+    mailSubject: "{{title}} くみくみ確認メール",
+    mailBody: "",
+  };
   try {
     config = await request("/api/config");
     document.querySelector("#title-logo").src = new URL(config.titleLogo, `${location.origin}/`);
@@ -294,8 +542,13 @@ async function start() {
   const match = location.pathname.match(/^\/(book|admin)\/([^/]+)$/);
   const cancelMatch = location.pathname.match(/^\/cancel\/([^/]+)\/([^/]+)$/);
   if (cancelMatch) cancelPage(cancelMatch[1], cancelMatch[2]);
-  else if (!match) createPage(config);
-  else if (match[1] === "book") bookPage(match[2]);
+  else if (location.pathname === "/") homePage(config);
+  else if (location.pathname === "/manage") managePage(config);
+  else if (location.pathname === "/new") {
+    if (config.authRequired && !config.authenticated) loginPage(config);
+    else createPage(config);
+  } else if (match?.[1] === "book") bookPage(match[2]);
+  else if (!match) app.innerHTML = '<div class="message error">ページが見つかりません</div>';
   else adminPage(match[2]);
 }
 
