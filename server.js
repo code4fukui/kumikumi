@@ -76,10 +76,6 @@ export function createApp(options = {}) {
     return sessions.get(sessionToken(req)) ?? null;
   }
 
-  function isAuthenticated(req) {
-    return Boolean(session(req)?.approved);
-  }
-
   async function hashPassword(password) {
     const bytes = new TextEncoder().encode(password);
     const digest = await crypto.subtle.digest("SHA-256", bytes);
@@ -103,8 +99,9 @@ export function createApp(options = {}) {
 
   async function currentActor(req) {
     const value = session(req);
-    if (!value?.approved) return null;
-    if (value.role === "developer") return value;
+    if (!value) return null;
+    if (value.role === "developer") return value.approved ? value : null;
+    if (!value.userId) return null;
     const user = await read("users", value.userId);
     if (!user?.approved) return null;
     return {
@@ -193,14 +190,15 @@ export function createApp(options = {}) {
           console.error("config.jsonを読み込めませんでした", e);
         }
       }
+      const actor = authRequired ? await currentActor(req) : session(req);
       return json({
         titleLogo,
         iconLogo,
         keyColor,
         slotTime,
         authRequired,
-        authenticated: !authRequired || isAuthenticated(req),
-        role: session(req)?.role ?? null,
+        authenticated: !authRequired || Boolean(actor),
+        role: actor?.role ?? null,
         mailSubject,
         mailBody,
       });
@@ -308,6 +306,7 @@ export function createApp(options = {}) {
       const actor = await currentActor(req);
       if (!actor) return error("ログインまたは承認が必要です", 401);
       const schedules = [];
+      const userNames = new Map((await allUsers()).map((user) => [user.id, user.name]));
       try {
         for await (const entry of Deno.readDir(`${dataDir}/schedules`)) {
           if (!entry.isFile || !entry.name.endsWith(".json")) continue;
@@ -315,11 +314,11 @@ export function createApp(options = {}) {
             const schedule = JSON.parse(
               await Deno.readTextFile(`${dataDir}/schedules/${entry.name}`),
             );
-            if (actor.role === "creator" && schedule.ownerId !== actor.userId) continue;
             const bookings = await read("bookings", schedule.id) ?? [];
             schedules.push({
               id: schedule.id,
               title: schedule.title,
+              creatorName: schedule.ownerName ?? userNames.get(schedule.ownerId) ?? "不明",
               createdAt: schedule.createdAt,
               slotCount: schedule.slots.length,
               bookingCount: bookings.length,
@@ -377,6 +376,7 @@ export function createApp(options = {}) {
         id,
         adminToken,
         ownerId: actor?.userId ?? null,
+        ownerName: actor?.name ?? "不明",
         title,
         mailSubject,
         mailBody,

@@ -320,7 +320,8 @@ Deno.test("管理者認証を設定した場合はログイン後だけスケジ
   assertEquals((await post("/api/schedules", schedule)).status, 401);
   const pendingLogin = await post("/api/login", { user: "作成者", pass: "合言葉" });
   assertEquals(pendingLogin.status, 200);
-  assertEquals((await pendingLogin.json()).approved, false);
+  assertEquals((await pendingLogin.clone().json()).approved, false);
+  const pendingCookie = pendingLogin.headers.get("set-cookie")?.split(";")[0] ?? "";
   const login = await post("/api/login", { user: "admin", pass: "secret" });
   assertEquals(login.status, 200);
   if (!login.headers.get("set-cookie")?.includes("Secure")) {
@@ -343,6 +344,7 @@ Deno.test("管理者認証を設定した場合はログイン後だけスケジ
   const list = await listResponse.json();
   assertEquals(list.schedules.length, 1);
   assertEquals(list.schedules[0].title, "面談");
+  assertEquals(list.schedules[0].creatorName, "admin");
   if (!list.schedules[0].adminUrl.startsWith(`/admin/${created.id}?token=`)) {
     throw new Error("一覧に管理URLがありません");
   }
@@ -364,6 +366,17 @@ Deno.test("管理者認証を設定した場合はログイン後だけスケジ
     )).status,
     200,
   );
+  const approvedConfig = await (await handler(
+    new Request("http://test/api/config", { headers: { cookie: pendingCookie } }),
+  )).json();
+  assertEquals(approvedConfig.authenticated, true);
+  assertEquals(approvedConfig.role, "creator");
+  assertEquals(
+    (await handler(
+      new Request("http://test/api/admin/schedules", { headers: { cookie: pendingCookie } }),
+    )).status,
+    200,
+  );
   const creatorLogin = await post("/api/login", { user: "作成者", pass: "合言葉" });
   assertEquals((await creatorLogin.clone().json()).approved, true);
   const creatorCookie = creatorLogin.headers.get("set-cookie")?.split(";")[0] ?? "";
@@ -374,7 +387,14 @@ Deno.test("管理者認証を設定した場合はログイン後だけスケジ
   const creatorList = await (await handler(
     new Request("http://test/api/admin/schedules", { headers: { cookie: creatorCookie } }),
   )).json();
-  assertEquals(creatorList.schedules.map((item) => item.title), ["作成者の面談"]);
+  assertEquals(
+    creatorList.schedules.map((item) => item.title).sort(),
+    ["作成者の面談", "面談"].sort(),
+  );
+  assertEquals(
+    creatorList.schedules.find((item) => item.title === "作成者の面談").creatorName,
+    "作成者",
+  );
   assertEquals(
     (await handler(
       new Request("http://test/api/admin/users", { headers: { cookie: creatorCookie } }),

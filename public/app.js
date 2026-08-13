@@ -234,9 +234,9 @@ async function managePage(config) {
       result.schedules.length
         ? `<div class="schedule-list">${
           result.schedules.map((s) =>
-            `<article><div><h3>${esc(s.title)}</h3><p>${
-              date(s.createdAt)
-            } 作成　予約 ${s.bookingCount} / ${s.slotCount}件</p></div><div class="schedule-actions"><a class="button" href="${
+            `<article><div><h3>${esc(s.title)}</h3><p>${date(s.createdAt)} 作成　作成者: ${
+              esc(s.creatorName)
+            }　予約 ${s.bookingCount} / ${s.slotCount}件</p></div><div class="schedule-actions"><a class="button" href="${
               esc(s.adminUrl)
             }">管理画面</a><a href="${
               esc(s.bookingUrl)
