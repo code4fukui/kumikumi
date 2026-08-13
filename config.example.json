@@ -7,5 +7,6 @@
   "baseURL": "https://example.com/",
   "slotTime": 30,
   "titleLogo": "/logo.png",
+  "iconLogo": "/icon.png",
   "keyColor": "#168458"
 }

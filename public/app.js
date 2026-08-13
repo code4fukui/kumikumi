@@ -523,6 +523,7 @@ async function cancelPage(scheduleId, bookingId) {
 async function start() {
   let config = {
     titleLogo: "/logo.png",
+    iconLogo: "/icon.png",
     keyColor: "#168458",
     slotTime: 30,
     authRequired: false,
@@ -533,6 +534,9 @@ async function start() {
   try {
     config = await request("/api/config");
     document.querySelector("#title-logo").src = new URL(config.titleLogo, `${location.origin}/`);
+    const iconUrl = new URL(config.iconLogo, `${location.origin}/`).href;
+    document.querySelector("#favicon").href = iconUrl;
+    document.querySelector("#apple-touch-icon").href = iconUrl;
     if (CSS.supports("color", config.keyColor)) {
       document.documentElement.style.setProperty("--key-color", config.keyColor);
     }

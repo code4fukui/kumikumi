@@ -164,6 +164,7 @@ export function createApp(options = {}) {
   async function api(req, url) {
     if (req.method === "GET" && url.pathname === "/api/config") {
       let titleLogo = "/logo.png";
+      let iconLogo = "/icon.png";
       let keyColor = "#168458";
       let slotTime = 30;
       let authRequired = false;
@@ -173,6 +174,9 @@ export function createApp(options = {}) {
         const config = await getConfig();
         if (typeof config.titleLogo === "string" && config.titleLogo.trim()) {
           titleLogo = config.titleLogo.trim();
+        }
+        if (typeof config.iconLogo === "string" && config.iconLogo.trim()) {
+          iconLogo = config.iconLogo.trim();
         }
         if (typeof config.keyColor === "string" && config.keyColor.trim()) {
           keyColor = config.keyColor.trim();
@@ -191,6 +195,7 @@ export function createApp(options = {}) {
       }
       return json({
         titleLogo,
+        iconLogo,
         keyColor,
         slotTime,
         authRequired,

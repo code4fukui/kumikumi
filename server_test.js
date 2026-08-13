@@ -249,6 +249,7 @@ Deno.test("config.jsonの表示設定だけを公開する", async () => {
     configPath,
     JSON.stringify({
       titleLogo: "https://example.com/logo.png",
+      iconLogo: "https://example.com/icon.png",
       keyColor: "#123456",
       slotTime: 45,
       gmailAddress: "secret@example.com",
@@ -258,6 +259,7 @@ Deno.test("config.jsonの表示設定だけを公開する", async () => {
   const handler = createApp({ dataDir: dir, publicDir: "public", configPath });
   const config = await (await handler(new Request("http://test/api/config"))).json();
   assertEquals(config.titleLogo, "https://example.com/logo.png");
+  assertEquals(config.iconLogo, "https://example.com/icon.png");
   assertEquals(config.keyColor, "#123456");
   assertEquals(config.slotTime, 45);
   assertEquals(config.authRequired, false);
@@ -278,6 +280,7 @@ Deno.test("表示設定がない場合は既定のロゴと緑を返す", async 
   });
   const config = await (await handler(new Request("http://test/api/config"))).json();
   assertEquals(config.titleLogo, "/logo.png");
+  assertEquals(config.iconLogo, "/icon.png");
   assertEquals(config.keyColor, "#168458");
   assertEquals(config.slotTime, 30);
   assertEquals(config.authRequired, false);
