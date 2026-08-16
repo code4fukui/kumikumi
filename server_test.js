@@ -296,6 +296,21 @@ Deno.test("表示設定がない場合は既定のロゴと緑を返す", async 
   assertEquals(config.authenticated, true);
 });
 
+Deno.test("OGP画像にconfig.jsonのロゴを絶対URLで使用する", async () => {
+  const dir = await Deno.makeTempDir();
+  const configPath = `${dir}/config.json`;
+  await Deno.writeTextFile(
+    configPath,
+    JSON.stringify({ baseURL: "https://reserve.example/app/", titleLogo: "/brand/logo.png" }),
+  );
+  const handler = createApp({ dataDir: dir, publicDir: "public", configPath });
+  const html = await (await handler(new Request("http://internal/"))).text();
+  if (!html.includes('property="og:image" content="https://reserve.example/brand/logo.png"')) {
+    throw new Error("OGP画像に設定ロゴの絶対URLが使われていません");
+  }
+  if (html.includes("__OG_IMAGE__")) throw new Error("OGP画像のプレースホルダーが残っています");
+});
+
 Deno.test("不正なslotTimeは30分にフォールバックする", async () => {
   const dir = await Deno.makeTempDir();
   const configPath = `${dir}/config.json`;

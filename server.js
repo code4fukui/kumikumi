@@ -633,7 +633,7 @@ export function createApp(options = {}) {
     return error("APIが見つかりません", 404);
   }
 
-  async function staticFile(pathname) {
+  async function staticFile(pathname, requestUrl) {
     let file = pathname === "/" ? "/index.html" : pathname;
     if (
       file === "/manage" || file === "/new" || /^\/(book|admin)\/[^/]+$/.test(file) ||
@@ -643,7 +643,7 @@ export function createApp(options = {}) {
     }
     if (!/^\/[a-zA-Z0-9._/-]+$/.test(file) || file.includes("..")) return null;
     try {
-      const content = await Deno.readFile(`${publicDir}${file}`);
+      let content = await Deno.readFile(`${publicDir}${file}`);
       const ext = file.split(".").pop();
       const types = {
         html: "text/html; charset=utf-8",
@@ -651,6 +651,32 @@ export function createApp(options = {}) {
         js: "text/javascript; charset=utf-8",
         png: "image/png",
       };
+      if (ext === "html") {
+        const config = await getConfig();
+        const configuredLogo = typeof config.titleLogo === "string" && config.titleLogo.trim()
+          ? config.titleLogo.trim()
+          : "/logo.png";
+        let publicBase;
+        try {
+          publicBase = typeof config.baseURL === "string" && config.baseURL.trim()
+            ? new URL("/", config.baseURL.trim())
+            : new URL("/", requestUrl);
+        } catch {
+          publicBase = new URL("/", requestUrl);
+        }
+        let ogImage;
+        try {
+          const candidate = new URL(configuredLogo, publicBase);
+          ogImage = ["http:", "https:"].includes(candidate.protocol)
+            ? candidate.href
+            : new URL("/logo.png", publicBase).href;
+        } catch {
+          ogImage = new URL("/logo.png", publicBase).href;
+        }
+        content = new TextEncoder().encode(
+          new TextDecoder().decode(content).replaceAll("__OG_IMAGE__", ogImage),
+        );
+      }
       return new Response(content, {
         headers: { "content-type": types[ext] ?? "application/octet-stream" },
       });
@@ -664,7 +690,7 @@ export function createApp(options = {}) {
     try {
       const url = new URL(req.url);
       if (url.pathname.startsWith("/api/")) return await api(req, url);
-      return await staticFile(url.pathname) ?? new Response("Not Found", { status: 404 });
+      return await staticFile(url.pathname, url) ?? new Response("Not Found", { status: 404 });
     } catch (e) {
       console.error(e);
       return error("サーバーエラーが発生しました", 500);

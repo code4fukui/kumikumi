@@ -66,6 +66,7 @@
   - 最下部に、削除ボタンを設置し、確認の後削除できる
 - pubilc/logo.png を全画面に配置
   - config.json の titleLogo に指定があれば、それをロゴとして使う
+  - OGPでの画像も設定のロゴ画像を使う
 - public/icon.png をfaviconや、ホーム画面へ追加時のアイコンとして使う
   - config.json の iconLogo に指定があれば、それをアイコンとして使う
 - サービスカラーは config.json の keyColor に指定があればそれを使う
