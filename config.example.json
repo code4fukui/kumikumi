@@ -7,6 +7,7 @@
   "lifetimeSession": 24,
   "baseURL": "https://example.com/",
   "slotTime": 30,
+  "attributeName": "会社名",
   "titleLogo": "/logo.png",
   "iconLogo": "/icon.png",
   "keyColor": "#168458"

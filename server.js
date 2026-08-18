@@ -178,6 +178,7 @@ export function createApp(options = {}) {
       let iconLogo = "/icon.png";
       let keyColor = "#168458";
       let slotTime = 30;
+      let attributeName = "会社名";
       let authRequired = false;
       let mailSubject = defaultMailSubject;
       let mailBody = "";
@@ -195,6 +196,9 @@ export function createApp(options = {}) {
         if (Number.isInteger(config.slotTime) && config.slotTime >= 5 && config.slotTime <= 480) {
           slotTime = config.slotTime;
         }
+        if (typeof config.attributeName === "string" && config.attributeName.trim()) {
+          attributeName = config.attributeName.trim().slice(0, 100);
+        }
         authRequired = Boolean(config.adminUser && config.adminPass);
         const template = await getDefaultMail();
         mailSubject = template.subject;
@@ -210,6 +214,7 @@ export function createApp(options = {}) {
         iconLogo,
         keyColor,
         slotTime,
+        attributeName,
         authRequired,
         authenticated: !authRequired || Boolean(actor),
         role: actor?.role ?? null,
@@ -438,8 +443,13 @@ export function createApp(options = {}) {
         const givenName = String(body.givenName ?? "").trim();
         const email = String(body.email ?? "").trim();
         const slot = String(body.slot ?? "");
+        const config = await getConfig();
+        const attributeName =
+          typeof config.attributeName === "string" && config.attributeName.trim()
+            ? config.attributeName.trim().slice(0, 100)
+            : "会社名";
         if (!company || !familyName || !givenName || !/^\S+@\S+\.\S+$/.test(email)) {
-          return error("会社名、姓、名、正しいメールアドレスをすべて入力してください");
+          return error(`${attributeName}、姓、名、正しいメールアドレスをすべて入力してください`);
         }
         if (![company, familyName, givenName, email].every((v) => v.length <= 200)) {
           return error("入力が長すぎます");

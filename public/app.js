@@ -278,7 +278,7 @@ async function managePage(config) {
   }
 }
 
-async function bookPage(id) {
+async function bookPage(id, config) {
   try {
     const s = await request(`/api/schedules/${id}`);
     const occupied = new Set(s.occupiedSlots);
@@ -303,7 +303,7 @@ async function bookPage(id) {
       ).join("") ||
       "予約可能な時間はありません。"
     }</div><form id="booking"><input type="hidden" name="slot"><div class="booking-fields"><div class="booking-field">${
-      field("会社名", "company")
+      field(config.attributeName || "会社名", "company")
     }</div><div class="booking-field"><span class="field-label">姓名</span><div class="name-fields"><label for="familyName">姓<input id="familyName" name="familyName" required></label><label for="givenName">名<input id="givenName" name="givenName" required></label></div></div><div class="booking-field">${
       field("メールアドレス", "email", "email")
     }</div></div><p class="mail-notice">「この時間で予約」を押すと、設定されたメールアドレスから確認メールが送信されます。</p><p><button id="submit-booking" disabled>この時間で予約</button></p><p id="selected-slot" class="selected-slot" role="status">希望時間帯を選択してください。</p></form><div id="message"></div>`;
@@ -351,7 +351,7 @@ async function bookPage(id) {
         submit.classList.remove("processing");
         submit.removeAttribute("aria-busy");
         submit.textContent = "この時間で予約";
-        if (err.status === 409) setTimeout(() => bookPage(id), 1800);
+        if (err.status === 409) setTimeout(() => bookPage(id, config), 1800);
       }
     };
   } catch (err) {
@@ -359,7 +359,7 @@ async function bookPage(id) {
   }
 }
 
-async function adminPage(id) {
+async function adminPage(id, config) {
   try {
     const s = await request(`/api/admin/${id}`);
     const adminTitle = `${s.title} - くみくみ管理画面`;
@@ -378,7 +378,9 @@ async function adminPage(id) {
       [...slotsByDay].map(([dateLabel, slots]) =>
         `<section class="admin-day"><h2>${
           esc(dateLabel)
-        }</h2><div class="admin-scroll"><table><thead><tr><th>時間</th><th>会社名</th><th>姓名</th><th>メールアドレス</th></tr></thead><tbody>${
+        }</h2><div class="admin-scroll"><table><thead><tr><th>時間</th><th>${
+          esc(config.attributeName || "会社名")
+        }</th><th>姓名</th><th>メールアドレス</th></tr></thead><tbody>${
           slots.map((slot) => {
             const b = bySlot.get(slot);
             return `<tr><td>${time(slot)}</td><td>${b ? esc(b.company) : "空き"}</td><td>${
@@ -434,7 +436,7 @@ async function adminPage(id) {
         });
         msg.className = "message";
         msg.textContent = `${result.addedCount}件の予約枠を追加しました。`;
-        setTimeout(() => adminPage(id), 800);
+        setTimeout(() => adminPage(id, config), 800);
       } catch (err) {
         msg.className = "message error";
         msg.textContent = err.message;
@@ -526,6 +528,7 @@ async function start() {
     iconLogo: "/icon.png",
     keyColor: "#168458",
     slotTime: 30,
+    attributeName: "会社名",
     authRequired: false,
     authenticated: true,
     mailSubject: "{{title}} くみくみ確認メール",
@@ -551,9 +554,9 @@ async function start() {
   else if (location.pathname === "/new") {
     if (config.authRequired && !config.authenticated) loginPage(config);
     else createPage(config);
-  } else if (match?.[1] === "book") bookPage(match[2]);
+  } else if (match?.[1] === "book") bookPage(match[2], config);
   else if (!match) app.innerHTML = '<div class="message error">ページが見つかりません</div>';
-  else adminPage(match[2]);
+  else adminPage(match[2], config);
 }
 
 start();

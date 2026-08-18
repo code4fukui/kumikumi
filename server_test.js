@@ -261,6 +261,7 @@ Deno.test("config.jsonの表示設定だけを公開する", async () => {
       iconLogo: "https://example.com/icon.png",
       keyColor: "#123456",
       slotTime: 45,
+      attributeName: "学校名",
       gmailAddress: "secret@example.com",
       appPassword: "secret",
     }),
@@ -271,6 +272,7 @@ Deno.test("config.jsonの表示設定だけを公開する", async () => {
   assertEquals(config.iconLogo, "https://example.com/icon.png");
   assertEquals(config.keyColor, "#123456");
   assertEquals(config.slotTime, 45);
+  assertEquals(config.attributeName, "学校名");
   assertEquals(config.authRequired, false);
   assertEquals(config.authenticated, true);
   assertEquals(config.mailSubject, "{{title}} くみくみ確認メール");
@@ -291,6 +293,7 @@ Deno.test("表示設定がない場合は既定のロゴと緑を返す", async 
   assertEquals(config.titleLogo, "/logo.png");
   assertEquals(config.iconLogo, "/icon.png");
   assertEquals(config.keyColor, "#168458");
+  assertEquals(config.attributeName, "会社名");
   assertEquals(config.slotTime, 30);
   assertEquals(config.authRequired, false);
   assertEquals(config.authenticated, true);
