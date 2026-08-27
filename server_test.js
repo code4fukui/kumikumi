@@ -150,6 +150,54 @@ Deno.test("会社名、姓、名はすべて必須", async () => {
   assertEquals(response.status, 400);
 });
 
+Deno.test("追加入力フォームの設定と必須検証", async () => {
+  const dir = await Deno.makeTempDir();
+  const handler = createApp({
+    dataDir: dir,
+    publicDir: "public",
+    configPath: `${dir}/missing.json`,
+    sendMail: () => {},
+  });
+  const post = (path, body) =>
+    handler(
+      new Request(`http://test${path}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    );
+  const created = await (await post("/api/schedules", {
+    title: "面談",
+    slotMinutes: 30,
+    additionalFieldEnabled: true,
+    additionalFieldRequired: true,
+    additionalFieldLabel: "ご相談内容",
+    ranges: [{ start: "2030-01-01T00:00:00.000Z", end: "2030-01-01T00:30:00.000Z" }],
+  })).json();
+  const schedule = await (await handler(new Request(`http://test/api/schedules/${created.id}`)))
+    .json();
+  assertEquals(schedule.additionalFieldEnabled, true);
+  assertEquals(schedule.additionalFieldRequired, true);
+  assertEquals(schedule.additionalFieldLabel, "ご相談内容");
+  const booking = {
+    slot: schedule.slots[0],
+    company: "テスト社",
+    familyName: "山田",
+    givenName: "太郎",
+    email: "taro@example.jp",
+  };
+  assertEquals((await post(`/api/schedules/${created.id}/bookings`, booking)).status, 400);
+  assertEquals(
+    (await post(`/api/schedules/${created.id}/bookings`, {
+      ...booking,
+      additionalText: "日程の相談",
+    })).status,
+    201,
+  );
+  const saved = JSON.parse(await Deno.readTextFile(`${dir}/bookings/${created.id}.json`));
+  assertEquals(saved[0].additionalText, "日程の相談");
+});
+
 Deno.test("メールテンプレートの差し込み", () => {
   assertEquals(
     fillMailTemplate("{{familyName}}様 {{title}} {{cancelUrl}}", {

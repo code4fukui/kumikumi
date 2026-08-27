@@ -53,7 +53,7 @@ function createPage(config) {
   app.innerHTML =
     `<div class="page-actions"><a href="/manage">← 作成者ページへ戻る</a><button type="button" class="secondary logout">ログアウト</button></div><h1>新規スケジュール作成</h1><form id="create">${
       field("タイトル", "title")
-    }<label for="minutes">1スロットの時間（分）</label><input id="minutes" name="slotMinutes" type="number" min="5" max="480" value="${config.slotTime}" required><label>予約可能日時</label><div id="dates"></div><button type="button" class="secondary" id="add-date">＋ 日付を追加</button><fieldset class="mail-settings"><legend>予約確認メール</legend><label for="mailSubject">メールタイトル</label><input id="mailSubject" name="mailSubject" value="${
+    }<label for="minutes">1スロットの時間（分）</label><input id="minutes" name="slotMinutes" type="number" min="5" max="480" value="${config.slotTime}" required><label>予約可能日時</label><div id="dates"></div><button type="button" class="secondary" id="add-date">＋ 日付を追加</button><fieldset class="mail-settings"><legend>追加入力フォーム</legend><label class="check-label"><input type="checkbox" name="additionalFieldEnabled" id="additional-field-enabled"> 予約時に自由記入欄を追加する</label><div id="additional-field-options" hidden><label class="check-label"><input type="checkbox" name="additionalFieldRequired"> 入力を必須にする</label><label for="additionalFieldLabel">記入してもらう項目の説明</label><input id="additionalFieldLabel" name="additionalFieldLabel" maxlength="200" placeholder="例: ご相談内容"></div></fieldset><fieldset class="mail-settings"><legend>予約確認メール</legend><label for="mailSubject">メールタイトル</label><input id="mailSubject" name="mailSubject" value="${
       esc(config.mailSubject)
     }" maxlength="200" required><label for="mailBody">メール本文</label><textarea id="mailBody" name="mailBody" maxlength="20000" rows="12" required>${
       esc(config.mailBody)
@@ -79,6 +79,14 @@ function createPage(config) {
   };
   addDate();
   document.querySelector("#add-date").onclick = addDate;
+  const additionalEnabled = document.querySelector("#additional-field-enabled");
+  const additionalOptions = document.querySelector("#additional-field-options");
+  const syncAdditionalOptions = () => {
+    additionalOptions.hidden = !additionalEnabled.checked;
+    document.querySelector("#additionalFieldLabel").required = additionalEnabled.checked;
+  };
+  additionalEnabled.onchange = syncAdditionalOptions;
+  syncAdditionalOptions();
   bindLogout();
   document.querySelector("#create").onsubmit = async (e) => {
     e.preventDefault();
@@ -101,6 +109,9 @@ function createPage(config) {
         slotMinutes: Number(f.get("slotMinutes")),
         mailSubject: f.get("mailSubject"),
         mailBody: f.get("mailBody"),
+        additionalFieldEnabled: f.has("additionalFieldEnabled"),
+        additionalFieldRequired: f.has("additionalFieldRequired"),
+        additionalFieldLabel: f.get("additionalFieldLabel"),
         ranges,
       };
       const result = await request("/api/schedules", {
@@ -306,7 +317,15 @@ async function bookPage(id, config) {
       field(config.attributeName || "会社名", "company")
     }</div><div class="booking-field"><span class="field-label">姓名</span><div class="name-fields"><label for="familyName">姓<input id="familyName" name="familyName" required></label><label for="givenName">名<input id="givenName" name="givenName" required></label></div></div><div class="booking-field">${
       field("メールアドレス", "email", "email")
-    }</div></div><p class="mail-notice">「この時間で予約」を押すと、設定されたメールアドレスから確認メールが送信されます。</p><p><button id="submit-booking" disabled>この時間で予約</button></p><p id="selected-slot" class="selected-slot" role="status">希望時間帯を選択してください。</p></form><div id="message"></div>`;
+    }</div>${
+      s.additionalFieldEnabled
+        ? `<div class="booking-field"><label for="additionalText">${esc(s.additionalFieldLabel)}${
+          s.additionalFieldRequired ? "（必須）" : "（任意）"
+        }</label><textarea id="additionalText" name="additionalText" maxlength="2000" rows="5" ${
+          s.additionalFieldRequired ? "required" : ""
+        }></textarea></div>`
+        : ""
+    }</div><p class="mail-notice">「この時間で予約」を押すと、設定されたメールアドレスから確認メールが送信されます。</p><p><button id="submit-booking" disabled>この時間で予約</button></p><p id="selected-slot" class="selected-slot" role="status">希望時間帯を選択してください。</p></form><div id="message"></div>`;
     document.querySelectorAll(".slot:not(:disabled)").forEach((b) =>
       b.onclick = () => {
         document.querySelectorAll(".slot").forEach((x) => x.classList.remove("selected"));
@@ -380,12 +399,18 @@ async function adminPage(id, config) {
           esc(dateLabel)
         }</h2><div class="admin-scroll"><table><thead><tr><th>時間</th><th>${
           esc(config.attributeName || "会社名")
-        }</th><th>姓名</th><th>メールアドレス</th></tr></thead><tbody>${
+        }</th><th>姓名</th><th>メールアドレス</th>${
+          s.additionalFieldEnabled ? `<th>${esc(s.additionalFieldLabel)}</th>` : ""
+        }</tr></thead><tbody>${
           slots.map((slot) => {
             const b = bySlot.get(slot);
             return `<tr><td>${time(slot)}</td><td>${b ? esc(b.company) : "空き"}</td><td>${
               b ? `${esc(b.familyName)} ${esc(b.givenName)}` : "—"
-            }</td><td>${b ? esc(b.email) : "—"}</td></tr>`;
+            }</td><td>${b ? esc(b.email) : "—"}</td>${
+              s.additionalFieldEnabled
+                ? `<td>${b?.additionalText ? esc(b.additionalText) : "—"}</td>`
+                : ""
+            }</tr>`;
           }).join("")
         }</tbody></table></div></section>`
       ).join("")
@@ -401,7 +426,13 @@ async function adminPage(id, config) {
           ).join("")
         }</ul>`
         : "<p>履歴はありません。</p>"
-    }</section><section class="admin-editor"><h2>予約枠を追加</h2><form id="add-slots"><div class="time-range"><label>日付<input type="date" name="date" required></label><label>開始<input type="time" name="start" value="10:00" required></label><label>終了<input type="time" name="end" value="12:00" required></label><button>追加</button></div><p class="template-help">1枠 ${s.slotMinutes}分で追加します。</p><div id="slot-update-message"></div></form></section><section class="admin-editor"><h2>予約確認メール</h2><form id="update-mail"><label for="admin-mail-subject">メールタイトル</label><input id="admin-mail-subject" name="mailSubject" value="${
+    }</section><section class="admin-editor"><h2>予約枠を追加</h2><form id="add-slots"><div class="time-range"><label>日付<input type="date" name="date" required></label><label>開始<input type="time" name="start" value="10:00" required></label><label>終了<input type="time" name="end" value="12:00" required></label><button>追加</button></div><p class="template-help">1枠 ${s.slotMinutes}分で追加します。</p><div id="slot-update-message"></div></form></section><section class="admin-editor"><h2>追加入力フォーム</h2><form id="update-additional"><label class="check-label"><input type="checkbox" name="additionalFieldEnabled" ${
+      s.additionalFieldEnabled ? "checked" : ""
+    }> 予約時に自由記入欄を表示する</label><label class="check-label"><input type="checkbox" name="additionalFieldRequired" ${
+      s.additionalFieldRequired ? "checked" : ""
+    }> 入力を必須にする</label><label for="admin-additional-label">記入してもらう項目の説明</label><input id="admin-additional-label" name="additionalFieldLabel" value="${
+      esc(s.additionalFieldLabel)
+    }" maxlength="200"><p><button>更新</button></p><div id="additional-update-message"></div></form></section><section class="admin-editor"><h2>予約確認メール</h2><form id="update-mail"><label for="admin-mail-subject">メールタイトル</label><input id="admin-mail-subject" name="mailSubject" value="${
       esc(s.mailSubject)
     }" maxlength="200" required><label for="admin-mail-body">メール本文</label><textarea id="admin-mail-body" name="mailBody" maxlength="20000" rows="12" required>${
       esc(s.mailBody)
@@ -456,6 +487,32 @@ async function adminPage(id, config) {
         });
         msg.className = "message";
         msg.textContent = "メール設定を更新しました。";
+      } catch (err) {
+        msg.className = "message error";
+        msg.textContent = err.message;
+      } finally {
+        button.disabled = false;
+      }
+    };
+    document.querySelector("#update-additional").onsubmit = async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const msg = document.querySelector("#additional-update-message");
+      const button = form.querySelector("button");
+      const f = new FormData(form);
+      button.disabled = true;
+      try {
+        await request(`/api/admin/${id}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            additionalFieldEnabled: f.has("additionalFieldEnabled"),
+            additionalFieldRequired: f.has("additionalFieldRequired"),
+            additionalFieldLabel: f.get("additionalFieldLabel"),
+          }),
+        });
+        msg.className = "message";
+        msg.textContent = "追加入力フォームを更新しました。";
       } catch (err) {
         msg.className = "message error";
         msg.textContent = err.message;

@@ -152,6 +152,16 @@ textarea {
   padding: 0 6px;
   font-weight: 700;
 }
+.check-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+.check-label input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+}
 .template-help {
   color: #74636a;
   font-size: .85rem;

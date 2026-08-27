@@ -376,6 +376,10 @@ export function createApp(options = {}) {
       const defaultMail = await getDefaultMail();
       const mailSubject = String(body.mailSubject ?? defaultMail.subject).trim();
       const mailBody = String(body.mailBody ?? defaultMail.body).trim();
+      const additionalFieldEnabled = body.additionalFieldEnabled === true;
+      const additionalFieldRequired = additionalFieldEnabled &&
+        body.additionalFieldRequired === true;
+      const additionalFieldLabel = String(body.additionalFieldLabel ?? "").trim();
       const slotMinutes = Number(body.slotMinutes);
       if (!title || title.length > 100) return error("タイトルは1〜100文字で入力してください");
       if (!mailSubject || mailSubject.length > 200) {
@@ -383,6 +387,9 @@ export function createApp(options = {}) {
       }
       if (!mailBody || mailBody.length > 20_000) {
         return error("メール本文は1〜20000文字で入力してください");
+      }
+      if (additionalFieldEnabled && (!additionalFieldLabel || additionalFieldLabel.length > 200)) {
+        return error("追加入力の説明は1〜200文字で入力してください");
       }
       if (!Number.isInteger(slotMinutes) || slotMinutes < 5 || slotMinutes > 480) {
         return error("1スロットは5〜480分で指定してください");
@@ -402,6 +409,9 @@ export function createApp(options = {}) {
         title,
         mailSubject,
         mailBody,
+        additionalFieldEnabled,
+        additionalFieldRequired,
+        additionalFieldLabel,
         slotMinutes,
         slots,
         createdAt: new Date().toISOString(),
@@ -424,6 +434,9 @@ export function createApp(options = {}) {
         slotMinutes: schedule.slotMinutes,
         slots: schedule.slots,
         occupiedSlots: [...occupied],
+        additionalFieldEnabled: schedule.additionalFieldEnabled === true,
+        additionalFieldRequired: schedule.additionalFieldRequired === true,
+        additionalFieldLabel: schedule.additionalFieldLabel ?? "",
       });
     }
 
@@ -443,6 +456,7 @@ export function createApp(options = {}) {
         const givenName = String(body.givenName ?? "").trim();
         const email = String(body.email ?? "").trim();
         const slot = String(body.slot ?? "");
+        const additionalText = String(body.additionalText ?? "").trim();
         const config = await getConfig();
         const attributeName =
           typeof config.attributeName === "string" && config.attributeName.trim()
@@ -453,6 +467,12 @@ export function createApp(options = {}) {
         }
         if (![company, familyName, givenName, email].every((v) => v.length <= 200)) {
           return error("入力が長すぎます");
+        }
+        if (additionalText.length > 2000) return error("追加入力は2000文字以内で入力してください");
+        if (
+          schedule.additionalFieldEnabled && schedule.additionalFieldRequired && !additionalText
+        ) {
+          return error(`${schedule.additionalFieldLabel || "追加入力"}を入力してください`);
         }
         if (!schedule.slots.includes(slot)) return error("選択された時間は予約できません");
         const bookings = await read("bookings", schedule.id) ?? [];
@@ -467,6 +487,7 @@ export function createApp(options = {}) {
           familyName,
           givenName,
           email,
+          additionalText: schedule.additionalFieldEnabled ? additionalText : "",
           createdAt: new Date().toISOString(),
         };
         const cancelPath = `/cancel/${schedule.id}/${booking.id}?token=${
@@ -517,6 +538,7 @@ export function createApp(options = {}) {
           familyName: booking.familyName,
           givenName: booking.givenName,
           email: booking.email,
+          additionalText: booking.additionalText,
           at: booking.createdAt,
         });
         await write("history", schedule.id, history);
@@ -584,6 +606,9 @@ export function createApp(options = {}) {
         history: await read("history", schedule.id) ?? [],
         mailSubject: schedule.mailSubject ?? defaultMailSubject,
         mailBody: schedule.mailBody ?? defaultMailBody,
+        additionalFieldEnabled: schedule.additionalFieldEnabled === true,
+        additionalFieldRequired: schedule.additionalFieldRequired === true,
+        additionalFieldLabel: schedule.additionalFieldLabel ?? "",
       });
     }
     if (req.method === "PATCH" && adminMatch) {
@@ -612,6 +637,19 @@ export function createApp(options = {}) {
           schedule.updatedAt = new Date().toISOString();
           await write("schedules", schedule.id, schedule);
           return json({ ok: true, addedCount: added.filter((slot) => !previous.has(slot)).length });
+        }
+        if (body.additionalFieldEnabled !== undefined) {
+          const enabled = body.additionalFieldEnabled === true;
+          const label = String(body.additionalFieldLabel ?? "").trim();
+          if (enabled && (!label || label.length > 200)) {
+            return error("追加入力の説明は1〜200文字で入力してください");
+          }
+          schedule.additionalFieldEnabled = enabled;
+          schedule.additionalFieldRequired = enabled && body.additionalFieldRequired === true;
+          schedule.additionalFieldLabel = label;
+          schedule.updatedAt = new Date().toISOString();
+          await write("schedules", schedule.id, schedule);
+          return json({ ok: true });
         }
         const mailSubject = String(body.mailSubject ?? "").trim();
         const mailBody = String(body.mailBody ?? "").trim();
