@@ -623,6 +623,16 @@ export function createApp(options = {}) {
         } catch {
           return error("JSONが正しくありません");
         }
+        if (body.title !== undefined) {
+          const title = String(body.title ?? "").trim();
+          if (!title || title.length > 100) {
+            return error("タイトルは1〜100文字で入力してください");
+          }
+          schedule.title = title;
+          schedule.updatedAt = new Date().toISOString();
+          await write("schedules", schedule.id, schedule);
+          return json({ ok: true, title });
+        }
         if (body.ranges !== undefined) {
           let added;
           try {

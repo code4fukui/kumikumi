@@ -393,7 +393,9 @@ async function adminPage(id, config) {
     const bookingUrl = `${location.origin}/book/${id}`;
     app.innerHTML = `<p><a href="/manage">← 作成者ページへ戻る</a></p><h1>${
       esc(adminTitle)
-    }</h1><div class="message"><p>この管理画面の操作には承認済みのログインが必要です。</p></div><p>予約 ${s.bookings.length} / ${s.slots.length}件</p><div class="urls share-url"><label for="booking-url">予約者向けURL</label><div><input id="booking-url" value="${bookingUrl}" readonly><a class="button" href="/book/${id}" target="_blank" rel="noopener noreferrer">新規ウィンドウで開く</a><button id="copy-booking-url" type="button">URLをコピー</button></div><p id="copy-status" class="copy-status" role="status"></p></div><div>${
+    }</h1><div class="message"><p>この管理画面の操作には承認済みのログインが必要です。</p></div><p>予約 ${s.bookings.length} / ${s.slots.length}件</p><div class="urls share-url"><label for="booking-url">予約者向けURL</label><div><input id="booking-url" value="${bookingUrl}" readonly><a class="button" href="/book/${id}" target="_blank" rel="noopener noreferrer">新規ウィンドウで開く</a><button id="copy-booking-url" type="button">URLをコピー</button></div><p id="copy-status" class="copy-status" role="status"></p></div><section class="admin-editor"><h2>スケジュールタイトル</h2><form id="update-title"><label for="admin-schedule-title">タイトル</label><input id="admin-schedule-title" name="title" value="${
+      esc(s.title)
+    }" maxlength="100" required><button>更新</button><div id="title-update-message"></div></form></section><div>${
       [...slotsByDay].map(([dateLabel, slots]) =>
         `<section class="admin-day"><h2>${
           esc(dateLabel)
@@ -446,6 +448,26 @@ async function adminPage(id, config) {
         const input = document.querySelector("#booking-url");
         input.select();
         status.textContent = "URLを選択しました。コピー操作を行ってください";
+      }
+    };
+    document.querySelector("#update-title").onsubmit = async (e) => {
+      e.preventDefault();
+      const msg = document.querySelector("#title-update-message");
+      const button = e.target.querySelector("button");
+      button.disabled = true;
+      try {
+        await request(`/api/admin/${id}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(Object.fromEntries(new FormData(e.target))),
+        });
+        msg.className = "message";
+        msg.textContent = "スケジュールタイトルを更新しました。";
+        setTimeout(() => adminPage(id, config), 800);
+      } catch (err) {
+        msg.className = "message error";
+        msg.textContent = err.message;
+        button.disabled = false;
       }
     };
     document.querySelector("#add-slots").onsubmit = async (e) => {

@@ -97,6 +97,17 @@ Deno.test("作成、予約、管理、および二重予約の拒否", async () 
   assertEquals(adminAfterUpdate.mailSubject, "{{title}} 更新後");
   assertEquals(adminAfterUpdate.mailBody, "{{familyName}}様 {{date}} {{cancelUrl}}");
   assertEquals(adminAfterUpdate.slots.length, 4);
+  const updateTitle = await call(`/api/admin/${created.id}`, "PATCH", {
+    title: " 更新した面談 ",
+  });
+  assertEquals(updateTitle.status, 200);
+  assertEquals((await updateTitle.json()).title, "更新した面談");
+  const adminAfterTitleUpdate = await (await call(`/api/admin/${created.id}`)).json();
+  assertEquals(adminAfterTitleUpdate.title, "更新した面談");
+  assertEquals(
+    (await call(`/api/admin/${created.id}`, "PATCH", { title: "" })).status,
+    400,
+  );
   assertEquals(
     (await handler(new Request(`http://test/api/admin/${created.id}`, { method: "DELETE" })))
       .status,
