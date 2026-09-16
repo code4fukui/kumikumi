@@ -239,7 +239,7 @@ export function createApp(options = {}) {
       const name = String(body.user ?? "").trim();
       const password = String(body.pass ?? "");
       if (!name || !password || name.length > 100 || password.length > 200) {
-        return error("ユーザー名とパスワードを入力してください");
+        return error("IDとパスワードを入力してください");
       }
       const token = createSessionID();
       const expiresAt = Date.now() + lifetimeMilliseconds(config);
@@ -306,8 +306,9 @@ export function createApp(options = {}) {
       }
       const name = String(body.user ?? "").trim();
       const password = String(body.pass ?? "");
-      if (!name || !password || name.length > 100 || password.length > 200) {
-        return error("ユーザー名とパスワードを入力してください");
+      const passphrase = String(body.passphrase ?? "").trim();
+      if (!name || !password || !passphrase || name.length > 100 || password.length > 200 || passphrase.length > 200) {
+        return error("ID、パスワード、合言葉をすべて入力してください");
       }
       const users = await allUsers();
       if (users.some((user) => user.name === name)) return error("そのユーザー名は既に使われています", 409);
@@ -315,7 +316,7 @@ export function createApp(options = {}) {
         id: crypto.randomUUID(),
         name,
         passwordHash: await hashPassword(password),
-        passphrase: password,
+        passphrase,
         approved: false,
         isAdmin: false,
         invitedBy: invitation.issuerId,
