@@ -255,7 +255,6 @@ export function createApp(options = {}) {
             id: crypto.randomUUID(),
             name,
             passwordHash,
-            passphrase: password,
             approved: false,
             isAdmin: false,
             createdAt: new Date().toISOString(),
@@ -263,10 +262,6 @@ export function createApp(options = {}) {
           await write("users", user.id, user);
         } else if (user.passwordHash !== passwordHash) {
           return error("ユーザー名またはパスワードが正しくありません", 401);
-        }
-        if (user.passphrase === undefined) {
-          user.passphrase = password;
-          await write("users", user.id, user);
         }
         loginResult = {
           role: user.isAdmin ? "admin" : "creator",
@@ -307,8 +302,8 @@ export function createApp(options = {}) {
       const name = String(body.user ?? "").trim();
       const password = String(body.pass ?? "");
       const passphrase = String(body.passphrase ?? "").trim();
-      if (!name || !password || !passphrase || name.length > 100 || password.length > 200 || passphrase.length > 200) {
-        return error("ID、パスワード、合言葉をすべて入力してください");
+      if (!name || !password || name.length > 100 || password.length > 200 || passphrase.length > 200) {
+        return error("IDとパスワードを入力してください");
       }
       const users = await allUsers();
       if (users.some((user) => user.name === name)) return error("そのユーザー名は既に使われています", 409);
@@ -316,7 +311,7 @@ export function createApp(options = {}) {
         id: crypto.randomUUID(),
         name,
         passwordHash: await hashPassword(password),
-        passphrase,
+        ...(passphrase ? { passphrase } : {}),
         approved: false,
         isAdmin: false,
         invitedBy: invitation.issuerId,

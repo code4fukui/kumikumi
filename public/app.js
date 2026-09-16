@@ -177,7 +177,7 @@ function homePage() {
 }
 
 function registrationPage(token) {
-  app.innerHTML = `<p><a href="/">← トップへ戻る</a></p><h1>作成者登録</h1><p id="issuer"></p><form id="register">${field("ID", "user")}${field("パスワード", "pass", "password")}${field("合言葉", "passphrase")}<p><button>登録する</button></p><div id="message"></div></form>`;
+  app.innerHTML = `<p><a href="/">← トップへ戻る</a></p><h1>作成者登録</h1><p id="issuer"></p><form id="register">${field("ID", "user")}${field("パスワード", "pass", "password")}${field("合言葉（任意）", "passphrase", "text", false)}<p><button>登録する</button></p><div id="message"></div></form>`;
   request(`/api/register/${token}`).then((result) => {
     document.querySelector("#issuer").textContent = `${result.issuerName}さんからの登録招待です。`;
   }).catch((err) => {
@@ -220,7 +220,7 @@ async function managePage(config) {
               `<article data-user-id="${user.id}"><strong><small>ID</small> ${
                 esc(user.name)
               }</strong><span class="passphrase"><small>合言葉</small>${
-                user.passphrase === undefined ? "（未保存）" : esc(user.passphrase)
+                user.passphrase === undefined ? "（未設定）" : esc(user.passphrase)
               }</span><label><input type="checkbox" name="approved" ${
                 user.approved ? "checked" : ""
               }> 承認</label><label><input type="checkbox" name="isAdmin" ${
