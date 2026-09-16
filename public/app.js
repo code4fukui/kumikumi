@@ -171,9 +171,9 @@ function loginPage(config) {
   };
 }
 
-function homePage() {
+function homePage(config) {
   app.innerHTML =
-    `<h1>くみくみ</h1><p class="lead">空いている時間を組み合わせて、予約日程をかんたんに調整できるサービスです。</p><div class="home-features"><p>管理者が予約可能な日時を設定し、発行されたURLを相手へ共有できます。</p><p>予約者は希望時間を選ぶだけ。予約確認とキャンセル用URLはメールで届きます。</p></div>`;
+    `<h1>くみくみ</h1><p class="lead">空いている時間を組み合わせて、予約日程をかんたんに調整できるサービスです。</p><div class="home-features"><p>管理者が予約可能な日時を設定し、発行されたURLを相手へ共有できます。</p><p>予約者は希望時間を選ぶだけ。予約確認とキャンセル用URLはメールで届きます。</p></div><p class="home-links"><a href="${esc(config.adminLoginPath)}">管理者用ログイン</a>　<a href="https://github.com/code4fukui/kumikumi" target="_blank" rel="noopener noreferrer">ソース</a></p>`;
 }
 
 function registrationPage(token) {
