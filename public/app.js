@@ -241,7 +241,7 @@ async function managePage(config) {
               esc(s.creatorName)
             }　予約 ${s.bookingCount} / ${s.slotCount}件</p></div><div class="schedule-actions"><a class="button" href="${
               esc(s.adminUrl)
-            }">管理画面</a><a href="${
+            }">予約編集</a><a href="${
               esc(s.bookingUrl)
             }" target="_blank" rel="noopener noreferrer">予約ページ</a></div></article>`
           ).join("")
