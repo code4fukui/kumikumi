@@ -180,6 +180,7 @@ export function createApp(options = {}) {
       let slotTime = 30;
       let attributeName = "会社名";
       let authRequired = false;
+      let adminLoginPath = "/admin-login";
       let mailSubject = defaultMailSubject;
       let mailBody = "";
       try {
@@ -200,6 +201,9 @@ export function createApp(options = {}) {
           attributeName = config.attributeName.trim().slice(0, 100);
         }
         authRequired = Boolean(config.adminUser && config.adminPass);
+        if (typeof config.adminLoginPath === "string" && /^\/[a-zA-Z0-9._/-]+$/.test(config.adminLoginPath)) {
+          adminLoginPath = config.adminLoginPath;
+        }
         const template = await getDefaultMail();
         mailSubject = template.subject;
         mailBody = template.body;
@@ -218,6 +222,7 @@ export function createApp(options = {}) {
         authRequired,
         authenticated: !authRequired || Boolean(actor),
         role: actor?.role ?? null,
+        adminLoginPath,
         mailSubject,
         mailBody,
       });
@@ -284,6 +289,46 @@ export function createApp(options = {}) {
       });
     }
 
+    const registrationMatch = url.pathname.match(/^\/api\/register\/([a-f0-9-]{36})$/);
+    if (registrationMatch && req.method === "GET") {
+      const invitation = await read("invitations", registrationMatch[1]);
+      if (!invitation || invitation.usedAt) return error("登録URLが無効です", 404);
+      return json({ ok: true, issuerName: invitation.issuerName });
+    }
+    if (registrationMatch && req.method === "POST") {
+      const invitation = await read("invitations", registrationMatch[1]);
+      if (!invitation || invitation.usedAt) return error("登録URLが無効です", 404);
+      let body;
+      try {
+        body = await req.json();
+      } catch {
+        return error("JSONが正しくありません");
+      }
+      const name = String(body.user ?? "").trim();
+      const password = String(body.pass ?? "");
+      if (!name || !password || name.length > 100 || password.length > 200) {
+        return error("ユーザー名とパスワードを入力してください");
+      }
+      const users = await allUsers();
+      if (users.some((user) => user.name === name)) return error("そのユーザー名は既に使われています", 409);
+      const user = {
+        id: crypto.randomUUID(),
+        name,
+        passwordHash: await hashPassword(password),
+        passphrase: password,
+        approved: false,
+        isAdmin: false,
+        invitedBy: invitation.issuerId,
+        invitedByName: invitation.issuerName,
+        createdAt: new Date().toISOString(),
+      };
+      await write("users", user.id, user);
+      invitation.usedAt = user.createdAt;
+      invitation.usedBy = user.id;
+      await write("invitations", invitation.id, invitation);
+      return json({ ok: true, approved: false }, 201);
+    }
+
     if (req.method === "POST" && url.pathname === "/api/logout") {
       const token = sessionToken(req);
       sessions.delete(token);
@@ -303,8 +348,26 @@ export function createApp(options = {}) {
       if (!actor || !["developer", "admin"].includes(actor.role)) {
         return error("権限がありません", 403);
       }
-      const users = (await allUsers()).map(({ passwordHash: _, ...user }) => user);
+      const visibleUsers = actor.role === "developer"
+        ? await allUsers()
+        : (await allUsers()).filter((user) => user.invitedBy === actor.userId);
+      const users = visibleUsers.map(({ passwordHash: _, ...user }) => user);
       return json({ users, canSetAdmin: actor.role === "developer" || actor.role === "admin" });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/admin/invitations") {
+      const actor = await currentActor(req);
+      if (!actor || !["developer", "admin"].includes(actor.role)) {
+        return error("権限がありません", 403);
+      }
+      const id = crypto.randomUUID();
+      await write("invitations", id, {
+        id,
+        issuerId: actor.userId ?? null,
+        issuerName: actor.name,
+        createdAt: new Date().toISOString(),
+      });
+      return json({ ok: true, inviteUrl: `/register/${id}` }, 201);
     }
 
     const userMatch = url.pathname.match(/^\/api\/admin\/users\/([^/]+)$/);
@@ -315,6 +378,9 @@ export function createApp(options = {}) {
       }
       const user = await read("users", userMatch[1]);
       if (!user) return error("作成者が見つかりません", 404);
+      if (actor.role !== "developer" && user.invitedBy !== actor.userId) {
+        return error("権限がありません", 403);
+      }
       if (req.method === "DELETE") {
         await remove("users", user.id);
         return json({ ok: true });
@@ -693,8 +759,13 @@ export function createApp(options = {}) {
 
   async function staticFile(pathname, requestUrl) {
     let file = pathname === "/" ? "/index.html" : pathname;
+    const routeConfig = await getConfig();
+    const adminLoginPath = typeof routeConfig.adminLoginPath === "string" &&
+        /^\/[a-zA-Z0-9._/-]+$/.test(routeConfig.adminLoginPath)
+      ? routeConfig.adminLoginPath
+      : "/admin-login";
     if (
-      file === "/manage" || file === "/new" || /^\/(book|admin)\/[^/]+$/.test(file) ||
+      file === "/manage" || file === "/new" || file === adminLoginPath || /^\/(book|admin|register)\/[^/]+$/.test(file) ||
       /^\/cancel\/[^/]+\/[^/]+$/.test(file)
     ) {
       file = "/index.html";

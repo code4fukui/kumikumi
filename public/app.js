@@ -171,49 +171,41 @@ function loginPage(config) {
   };
 }
 
-function homePage(config) {
+function homePage() {
   app.innerHTML =
-    `<h1>くみくみ</h1><p class="lead">空いている時間を組み合わせて、予約日程をかんたんに調整できるサービスです。</p><div class="home-features"><p>管理者が予約可能な日時を設定し、発行されたURLを相手へ共有できます。</p><p>予約者は希望時間を選ぶだけ。予約確認とキャンセル用URLはメールで届きます。</p></div><p><button id="show-login">管理者用ログイン</button></p><div id="login-area"></div>`;
-  document.querySelector("#show-login").onclick = () => {
-    if (!config.authRequired || config.authenticated) {
-      location.assign("/manage");
-      return;
+    `<h1>くみくみ</h1><p class="lead">空いている時間を組み合わせて、予約日程をかんたんに調整できるサービスです。</p><div class="home-features"><p>管理者が予約可能な日時を設定し、発行されたURLを相手へ共有できます。</p><p>予約者は希望時間を選ぶだけ。予約確認とキャンセル用URLはメールで届きます。</p></div>`;
+}
+
+function registrationPage(token) {
+  app.innerHTML = `<p><a href="/">← トップへ戻る</a></p><h1>作成者登録</h1><p id="issuer"></p><form id="register">${field("ユーザー名", "user")}${field("パスワード", "pass", "password")}<p><button>登録する</button></p><div id="message"></div></form>`;
+  request(`/api/register/${token}`).then((result) => {
+    document.querySelector("#issuer").textContent = `${result.issuerName}さんからの登録招待です。`;
+  }).catch((err) => {
+    document.querySelector("#register").hidden = true;
+    document.querySelector("#message").className = "message error";
+    document.querySelector("#message").textContent = err.message;
+  });
+  document.querySelector("#register").onsubmit = async (e) => {
+    e.preventDefault();
+    const button = e.target.querySelector("button");
+    const msg = document.querySelector("#message");
+    button.disabled = true;
+    try {
+      await request(`/api/register/${token}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(Object.fromEntries(new FormData(e.target))) });
+      msg.className = "message";
+      msg.textContent = "登録しました。管理者の承認後にログインできます。";
+      e.target.hidden = true;
+    } catch (err) {
+      msg.className = "message error";
+      msg.textContent = err.message;
+      button.disabled = false;
     }
-    const area = document.querySelector("#login-area");
-    area.innerHTML = `<form id="login" class="inline-login">${field("ユーザー名", "user")}${
-      field("パスワード", "pass", "password")
-    }<p><button>ログイン</button></p><div id="message"></div></form>`;
-    document.querySelector("#show-login").hidden = true;
-    area.querySelector("#login").onsubmit = async (e) => {
-      e.preventDefault();
-      const button = e.target.querySelector("button");
-      const msg = area.querySelector("#message");
-      button.disabled = true;
-      try {
-        const result = await request("/api/login", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(Object.fromEntries(new FormData(e.target))),
-        });
-        if (result.approved) location.assign("/manage");
-        else {
-          msg.className = "message";
-          msg.textContent = "利用申請を受け付けました。管理者の承認後にログインできます。";
-          button.disabled = false;
-        }
-      } catch (err) {
-        msg.className = "message error";
-        msg.textContent = err.message;
-        button.disabled = false;
-      }
-    };
-    area.querySelector('[name="user"]').focus();
   };
 }
 
 async function managePage(config) {
   if (config.authRequired && !config.authenticated) {
-    loginPage(config);
+    location.assign(config.adminLoginPath);
     return;
   }
   try {
@@ -221,7 +213,7 @@ async function managePage(config) {
     let usersHtml = "";
     if (["developer", "admin"].includes(result.role)) {
       const userResult = await request("/api/admin/users");
-      usersHtml = `<section class="creator-management"><h2>作成者一覧</h2>${
+      usersHtml = `<section class="creator-management"><h2>${result.role === "developer" ? "管理者・作成者一覧" : "発行した作成者一覧"}</h2><p><button type="button" id="create-invite">新規作成者登録URLを発行</button></p><div id="invite-message"></div>${
         userResult.users.length
           ? `<div class="creator-list">${
             userResult.users.map((user) =>
@@ -257,6 +249,21 @@ async function managePage(config) {
         : '<p class="message">作成済みのスケジュールはありません。</p>'
     }${usersHtml}`;
     bindLogout();
+    const inviteButton = document.querySelector("#create-invite");
+    if (inviteButton) inviteButton.onclick = async () => {
+      const button = inviteButton;
+      button.disabled = true;
+      try {
+        const invite = await request("/api/admin/invitations", { method: "POST" });
+        const message = document.querySelector("#invite-message");
+        message.className = "message";
+        message.innerHTML = `登録URL: <input value="${esc(new URL(invite.inviteUrl, location.origin).href)}" readonly>`;
+      } catch (err) {
+        document.querySelector("#invite-message").textContent = err.message;
+      } finally {
+        button.disabled = false;
+      }
+    };
     document.querySelectorAll(".creator-list article").forEach((row) => {
       const update = async () => {
         await request(`/api/admin/users/${row.dataset.userId}`, {
@@ -610,6 +617,7 @@ async function start() {
     attributeName: "会社名",
     authRequired: false,
     authenticated: true,
+    adminLoginPath: "/admin-login",
     mailSubject: "{{title}} くみくみ確認メール",
     mailBody: "",
   };
@@ -625,15 +633,17 @@ async function start() {
   } catch (err) {
     console.error("ロゴ設定を読み込めませんでした", err);
   }
-  const match = location.pathname.match(/^\/(book|admin)\/([^/]+)$/);
+  const match = location.pathname.match(/^\/(book|admin|register)\/([^/]+)$/);
   const cancelMatch = location.pathname.match(/^\/cancel\/([^/]+)\/([^/]+)$/);
   if (cancelMatch) cancelPage(cancelMatch[1], cancelMatch[2]);
   else if (location.pathname === "/") homePage(config);
+  else if (location.pathname === config.adminLoginPath) loginPage(config);
   else if (location.pathname === "/manage") managePage(config);
   else if (location.pathname === "/new") {
-    if (config.authRequired && !config.authenticated) loginPage(config);
+    if (config.authRequired && !config.authenticated) location.assign(config.adminLoginPath);
     else createPage(config);
   } else if (match?.[1] === "book") bookPage(match[2], config);
+  else if (match?.[1] === "register") registrationPage(match[2]);
   else if (!match) app.innerHTML = '<div class="message error">ページが見つかりません</div>';
   else adminPage(match[2], config);
 }
