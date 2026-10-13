@@ -695,6 +695,28 @@ export function createApp(options = {}) {
           await write("schedules", schedule.id, schedule);
           return json({ ok: true, title });
         }
+        if (body.removeSlots !== undefined) {
+          if (
+            !Array.isArray(body.removeSlots) ||
+            !body.removeSlots.length ||
+            !body.removeSlots.every((slot) => typeof slot === "string")
+          ) {
+            return error("削除する日程が正しくありません");
+          }
+          const removeSlots = [...new Set(body.removeSlots)];
+          if (!removeSlots.every((slot) => schedule.slots.includes(slot))) {
+            return error("削除する日程が見つかりません");
+          }
+          const bookings = await read("bookings", schedule.id) ?? [];
+          if (bookings.some((booking) => removeSlots.includes(booking.slot))) {
+            return error("予約済みの枠があるため日程を削除できません", 409);
+          }
+          const removeSet = new Set(removeSlots);
+          schedule.slots = schedule.slots.filter((slot) => !removeSet.has(slot));
+          schedule.updatedAt = new Date().toISOString();
+          await write("schedules", schedule.id, schedule);
+          return json({ ok: true, removedCount: removeSlots.length });
+        }
         if (body.ranges !== undefined) {
           let added;
           try {

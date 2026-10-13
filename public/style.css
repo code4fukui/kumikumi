@@ -367,10 +367,18 @@ table {
   overflow: hidden;
 }
 .admin-day h2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   margin: 0;
   padding: 12px 14px;
   font-size: 1.05rem;
   background: var(--key-pale);
+}
+.admin-day h2 button {
+  padding: 6px 10px;
+  font-size: .8rem;
 }
 .admin-scroll {
   overflow-x: auto;

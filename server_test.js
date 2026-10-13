@@ -62,6 +62,10 @@ Deno.test("作成、予約、管理、および二重予約の拒否", async () 
   if (!booked.cancelUrl.includes(`/cancel/${created.id}/`)) {
     throw new Error("キャンセルURLが発行されていません");
   }
+  assertEquals(
+    (await call(`/api/admin/${created.id}`, "PATCH", { removeSlots: [booking.slot] })).status,
+    409,
+  );
   assertEquals((await call(`/api/schedules/${created.id}/bookings`, "POST", booking)).status, 409);
   const afterBooking = await (await call(`/api/schedules/${created.id}`)).json();
   assertEquals(afterBooking.slots.length, 2);
@@ -83,6 +87,12 @@ Deno.test("作成、予約、管理、および二重予約の拒否", async () 
   assertEquals((await call(cancelApi)).status, 404);
   const adminAfterCancel = await (await call(`/api/admin/${created.id}`)).json();
   assertEquals(adminAfterCancel.history.map((item) => item.type), ["registered", "cancelled"]);
+  assertEquals(
+    (await call(`/api/admin/${created.id}`, "PATCH", {
+      removeSlots: [booking.slot, schedule.slots[1]],
+    })).status,
+    200,
+  );
   const updateMail = await call(`/api/admin/${created.id}`, "PATCH", {
     mailSubject: "{{title}} 更新後",
     mailBody: "{{familyName}}様 {{date}} {{cancelUrl}}",
@@ -96,7 +106,7 @@ Deno.test("作成、予約、管理、および二重予約の拒否", async () 
   const adminAfterUpdate = await (await call(`/api/admin/${created.id}`)).json();
   assertEquals(adminAfterUpdate.mailSubject, "{{title}} 更新後");
   assertEquals(adminAfterUpdate.mailBody, "{{familyName}}様 {{date}} {{cancelUrl}}");
-  assertEquals(adminAfterUpdate.slots.length, 4);
+  assertEquals(adminAfterUpdate.slots.length, 2);
   const updateTitle = await call(`/api/admin/${created.id}`, "PATCH", {
     title: " 更新した面談 ",
   });
