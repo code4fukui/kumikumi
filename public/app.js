@@ -9,6 +9,11 @@ const date = (iso) =>
     new Date(iso),
   );
 const day = (iso) => new Intl.DateTimeFormat("ja-JP", { dateStyle: "full" }).format(new Date(iso));
+const localDateKey = (value) => {
+  const d = new Date(value);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate())
+    .padStart(2, "0")}`;
+};
 const time = (iso) =>
   new Intl.DateTimeFormat("ja-JP", { hour: "2-digit", minute: "2-digit" }).format(
     new Date(iso),
@@ -301,7 +306,9 @@ async function bookPage(id, config) {
     const s = await request(`/api/schedules/${id}`);
     const occupied = new Set(s.occupiedSlots);
     const slotsByDay = new Map();
+    const today = localDateKey(new Date());
     for (const slot of s.slots) {
+      if (localDateKey(slot) < today) continue;
       const key = day(slot);
       if (!slotsByDay.has(key)) slotsByDay.set(key, []);
       slotsByDay.get(key).push(slot);
